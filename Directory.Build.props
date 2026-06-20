@@ -1,0 +1,19 @@
+<Project>
+
+  <!--
+    Supresión puntual de un aviso de seguridad transitivo (NuGet audit).
+
+    GHSA-2m69-gcr7-jv3q afecta a la lib nativa "SQLitePCLRaw.lib.e_sqlite3" 2.1.11,
+    traída transitivamente por Microsoft.Data.Sqlite 10.0.8 (pin alineado a EF Core 10.0.8).
+    Al 2026-06, 2.1.11 es la ÚLTIMA versión publicada de lib.e_sqlite3: no hay todavía una
+    build parcheada a la que subir. Riesgo real bajo en este proyecto (SQLite local de
+    desarrollo/serving, no expuesto a entrada no confiable).
+
+    Es una supresión ACOTADA a este advisory puntual (no se desactiva el audit): cualquier
+    aviso nuevo sigue apareciendo. Revisar y quitar cuando SQLitePCLRaw publique un fix.
+  -->
+  <ItemGroup>
+    <NuGetAuditSuppress Include="https://github.com/advisories/GHSA-2m69-gcr7-jv3q" />
+  </ItemGroup>
+
+</Project>
