@@ -756,6 +756,8 @@ using System.Runtime.CompilerServices;
 using DataPipeline.Connectors.Sources;
 using DataPipeline.Core.Records;
 using Xunit;
+// El proyecto de tests tiene un global using Xunit; alias para evitar CS0104 (Record vs Xunit.Record).
+using Record = DataPipeline.Core.Records.Record;
 
 namespace DataPipeline.Tests;
 
@@ -1058,6 +1060,8 @@ using DataPipeline.Core.Abstractions;
 using DataPipeline.Core.Pipelines;
 using DataPipeline.Core.Records;
 using DataPipeline.Core.Runtime;
+// El proyecto de tests tiene un global using Xunit; alias para evitar CS0104 (Record vs Xunit.Record).
+using Record = DataPipeline.Core.Records.Record;
 
 namespace DataPipeline.Tests.Fakes;
 
@@ -1104,6 +1108,8 @@ using DataPipeline.Core.Records;
 using DataPipeline.Engine;
 using DataPipeline.Tests.Fakes;
 using Xunit;
+// El proyecto de tests tiene un global using Xunit; alias para evitar CS0104 (Record vs Xunit.Record).
+using Record = DataPipeline.Core.Records.Record;
 
 namespace DataPipeline.Tests;
 
