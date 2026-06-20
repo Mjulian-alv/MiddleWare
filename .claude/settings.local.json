@@ -23,7 +23,11 @@
       "Bash(dotnet sln *)",
       "Bash(dotnet add *)",
       "Bash(dotnet build *)",
-      "Bash(git add *)"
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(bash __TRACKED_VAR__/review-package 4b825dc642cb6eb9a060e54bf8d69288fbee4904 HEAD)",
+      "Bash(sed -i 's/- \\\\[ \\\\] Task 1:.*/- [x] Task 1: Scaffold \\(commit 30588d3, review clean\\)/' .superpowers/sdd/progress.md)",
+      "Bash(bash __TRACKED_VAR__/task-brief docs/superpowers/plans/2026-06-19-datapipeline-fase1.md 2)"
     ]
   }
 }
