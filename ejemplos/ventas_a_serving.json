@@ -1,0 +1,20 @@
+{
+  "nombre": "ventas_a_serving",
+  "habilitado": true,
+  "programacion": "BajoDemanda",
+  "filasPorLote": 5000,
+  "tablaDestino": "serving_ventas",
+  "modoEscritura": "Reemplazar",
+  "correrDespuesDe": [],
+  "pasos": [
+    {
+      "nombre": "leer_ventas",
+      "tipo": "Origen",
+      "conector": "SqlServerSource",
+      "configuracion": {
+        "connectionString": "Server=POSSERVER;Database=ventas;Trusted_Connection=True;TrustServerCertificate=True;",
+        "sql": "SELECT TOP 1000 sucursal, fecha, monto, cantidad FROM ventas"
+      }
+    }
+  ]
+}
