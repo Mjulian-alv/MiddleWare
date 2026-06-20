@@ -5,3 +5,6 @@ obj/
 *.db-shm
 *.db-wal
 .vs/
+
+# Harness local settings
+.claude/settings.local.json
