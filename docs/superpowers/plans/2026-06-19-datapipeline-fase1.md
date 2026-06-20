@@ -275,7 +275,7 @@ public sealed class PipelineDefinition
 
     public List<StepDefinition> Pasos { get; set; } = new();
     public string TablaDestino { get; set; } = "";
-    public ModoEscritura ModoEscritura { get; set; } = ModoEscritura.Agregar;
+    public ModoEscritura ModoEscritura { get; set; } = ModoEscritura.Reemplazar;
 
     public List<Guid> CorrerDespuesDe { get; set; } = new();
 
