@@ -14,7 +14,13 @@
 
 - TargetFramework: `net10.0`; `<Nullable>enable</Nullable>`; `<ImplicitUsings>enable</ImplicitUsings>` en todos los proyectos.
 - `DataPipeline.Core` **no** referencia ningún driver ni paquete externo (solo BCL). Es el único proyecto sin dependencias.
-- Nombres de los **contratos públicos** en inglés tal como los fija el diseño: `ISource`, `ITransform`, `IDataStore`, `ISourceFactory`, `RecordBatch`, `Record`, `RunContext`, `RunResult`, `PipelineDefinition`, `StepDefinition`, enums `StepKind`/`ScheduleKind`/`WriteMode`. Variables locales y comentarios **en español** (estilo de la casa, ver `ARCHITECTURE.md` de ConsultasGenericas).
+- **Convención de idioma (Opción 2):** los **valores y tipos de enum** y las **propiedades** de los tipos de dominio/config (`PipelineDefinition`, `StepDefinition`) van **en castellano**; las **interfaces, los tipos técnicos de runtime** (`Record`, `RecordBatch`, `RunContext`, `RunResult`), los **servicios** (`PipelineRunner`, `SqliteDataStore`, etc.), los **métodos** y los **modismos .NET** (prefijo `I`, sufijo `Async`, `CancellationToken`) quedan **en inglés**. Variables locales y comentarios **en español**. Sin tildes ni `ñ` en identificadores.
+- **Mapa de nombres (usar EXACTAMENTE estos):**
+  - Enums: `TipoPaso { Origen, Transformacion }`; `TipoProgramacion { BajoDemanda, Diaria, Semanal, Mensual }`; `ModoEscritura { Agregar, Combinar, Reemplazar }`.
+  - `PipelineDefinition` (tipo en inglés, props en castellano): `Id`, `Nombre`, `Habilitado`, `Programacion` (TipoProgramacion), `HoraDelDia` (string?), `DiaDeLaSemana` (int?), `DiaDelMes` (int?), `ProximaCorrida` (DateTime?), `UltimaCorrida` (DateTime?), `Pasos` (List<StepDefinition>), `TablaDestino` (string), `ModoEscritura` (ModoEscritura), `CorrerDespuesDe` (List<Guid>), `FilasPorLote` (int).
+  - `StepDefinition` (tipo en inglés, props en castellano): `Nombre` (string), `Tipo` (TipoPaso), `Conector` (string), `Configuracion` (Dictionary<string,string>).
+  - Quedan en inglés (sin cambios): `Record.Values`, `RecordBatch.Columns/Rows`, `RunContext.{PipelineId,RunId,Parameters,Encryption,BatchSize}`, `IEncryptionService.Encrypt/Decrypt`, todos los métodos `*Async`, `ISource/ITransform/IDataStore/ISourceFactory`.
+  - JSON (camelCase de las props): `nombre`, `habilitado`, `programacion`, `horaDelDia`, `tablaDestino`, `modoEscritura`, `correrDespuesDe`, `filasPorLote`, `pasos`; y por paso: `nombre`, `tipo`, `conector`, `configuracion`.
 - **Streaming obligatorio:** ningún source hace `ToList()`/`QueryAsync` del dataset completo. Solo `DbDataReader` + lotes.
 - Cancelación cooperativa: todo método async acepta y propaga `CancellationToken`.
 - Un commit como mínimo por tarea. El repo se inicializa en la Tarea 1.
@@ -35,7 +41,7 @@ E:\Sistemas\MiddleWare\
 │   ├── Records/RecordBatch.cs
 │   ├── Pipelines/PipelineDefinition.cs
 │   ├── Pipelines/StepDefinition.cs
-│   ├── Pipelines/Enums.cs            (StepKind, ScheduleKind, WriteMode)
+│   ├── Pipelines/Enums.cs            (TipoPaso, TipoProgramacion, ModoEscritura)
 │   ├── Runtime/RunContext.cs
 │   ├── Abstractions/ISource.cs
 │   ├── Abstractions/ITransform.cs
@@ -177,21 +183,21 @@ git commit -m "chore: scaffold solución DataPipeline (Core/Connectors/Engine/Cl
 - Create: `DataPipeline.Core/Runtime/RunContext.cs`
 - Create: `DataPipeline.Core/Security/IEncryptionService.cs`
 - Create: `DataPipeline.Core/Abstractions/ISource.cs`, `ITransform.cs`, `IDataStore.cs`, `ISourceFactory.cs`
-- Test: `tests/DataPipeline.Tests/PipelineJsonLoaderTests.cs` (la cobertura real de estos tipos llega vía el loader en la Tarea 7; acá solo un test de construcción)
+- Test: ninguno en esta tarea. Estos tipos son POCOs/contratos puros; su cobertura real llega con el loader y el runner (Tareas 4 y 7, que crean sus propios archivos de test). La verificación de la Tarea 2 es `dotnet build`.
 
 **Interfaces:**
 - Consumes: nada.
 - Produces (firmas que el resto del plan usa textualmente):
   - `record Record { IReadOnlyDictionary<string, object?> Values }`
   - `record RecordBatch { IReadOnlyList<string> Columns; IReadOnlyList<Record> Rows }`
-  - `enum StepKind { Source, Transform }`, `enum ScheduleKind { OnDemand, Daily, Weekly, Monthly }`, `enum WriteMode { Append, Upsert, Replace }`
-  - `class StepDefinition { string Name; StepKind Kind; string Type; Dictionary<string,string> Config }`
-  - `class PipelineDefinition { Guid Id; string Name; bool Enabled; ScheduleKind Schedule; string? TimeOfDay; int? DayOfWeek; int? DayOfMonth; DateTime? NextRunAt; DateTime? LastRunAt; List<StepDefinition> Steps; string TargetTable; WriteMode WriteMode; List<Guid> RunAfter; int BatchSize }`
+  - `enum TipoPaso { Origen, Transformacion }`, `enum TipoProgramacion { BajoDemanda, Diaria, Semanal, Mensual }`, `enum ModoEscritura { Agregar, Combinar, Reemplazar }`
+  - `class StepDefinition { string Nombre; TipoPaso Tipo; string Conector; Dictionary<string,string> Configuracion }`
+  - `class PipelineDefinition { Guid Id; string Nombre; bool Habilitado; TipoProgramacion Programacion; string? HoraDelDia; int? DiaDeLaSemana; int? DiaDelMes; DateTime? ProximaCorrida; DateTime? UltimaCorrida; List<StepDefinition> Pasos; string TablaDestino; ModoEscritura ModoEscritura; List<Guid> CorrerDespuesDe; int FilasPorLote }`
   - `class RunContext { Guid PipelineId; Guid RunId; IReadOnlyDictionary<string,string> Parameters; IEncryptionService Encryption; int BatchSize }`
   - `interface IEncryptionService { string Encrypt(string text); string Decrypt(string encryptedText); }`
   - `interface ISource { IAsyncEnumerable<RecordBatch> ReadAsync(RunContext ctx, CancellationToken ct); }`
   - `interface ITransform { IAsyncEnumerable<RecordBatch> TransformAsync(IAsyncEnumerable<RecordBatch> input, RunContext ctx, CancellationToken ct); }`
-  - `interface IDataStore { Task EnsureTableAsync(string table, IReadOnlyList<string> columns, WriteMode mode, CancellationToken ct); Task WriteBatchAsync(string table, RecordBatch batch, CancellationToken ct); Task<RecordBatch> ReadPagedAsync(string table, int page, int pageSize, CancellationToken ct); }`
+  - `interface IDataStore { Task EnsureTableAsync(string table, IReadOnlyList<string> columns, ModoEscritura mode, CancellationToken ct); Task WriteBatchAsync(string table, RecordBatch batch, CancellationToken ct); Task<RecordBatch> ReadPagedAsync(string table, int page, int pageSize, CancellationToken ct); }`
   - `interface ISourceFactory { ISource Create(StepDefinition step); }`
 
 - [ ] **Step 1: Crear los tipos de datos en vuelo**
@@ -225,22 +231,27 @@ public sealed record RecordBatch
 ```csharp
 namespace DataPipeline.Core.Pipelines;
 
-public enum StepKind { Source, Transform }
-public enum ScheduleKind { OnDemand, Daily, Weekly, Monthly }
-public enum WriteMode { Append, Upsert, Replace }
+/// <summary>Clase de un paso: lee de un origen o transforma datos en vuelo.</summary>
+public enum TipoPaso { Origen, Transformacion }
+
+/// <summary>Forma de programar un pipeline.</summary>
+public enum TipoProgramacion { BajoDemanda, Diaria, Semanal, Mensual }
+
+/// <summary>Cómo escribe el sink interno en la tabla destino.</summary>
+public enum ModoEscritura { Agregar, Combinar, Reemplazar }
 ```
 
 `DataPipeline.Core/Pipelines/StepDefinition.cs`:
 ```csharp
 namespace DataPipeline.Core.Pipelines;
 
-/// <summary>Un paso del pipeline (Source o Transform). El sink interno es implícito.</summary>
+/// <summary>Un paso del pipeline (Origen o Transformación). El sink interno es implícito.</summary>
 public sealed class StepDefinition
 {
-    public string Name { get; set; } = "";
-    public StepKind Kind { get; set; }
-    public string Type { get; set; } = "";
-    public Dictionary<string, string> Config { get; set; } = new();
+    public string Nombre { get; set; } = "";
+    public TipoPaso Tipo { get; set; }
+    public string Conector { get; set; } = "";
+    public Dictionary<string, string> Configuracion { get; set; } = new();
 }
 ```
 
@@ -252,23 +263,23 @@ namespace DataPipeline.Core.Pipelines;
 public sealed class PipelineDefinition
 {
     public Guid Id { get; set; }
-    public string Name { get; set; } = "";
-    public bool Enabled { get; set; } = true;
+    public string Nombre { get; set; } = "";
+    public bool Habilitado { get; set; } = true;
 
-    public ScheduleKind Schedule { get; set; } = ScheduleKind.OnDemand;
-    public string? TimeOfDay { get; set; }
-    public int? DayOfWeek { get; set; }
-    public int? DayOfMonth { get; set; }
-    public DateTime? NextRunAt { get; set; }
-    public DateTime? LastRunAt { get; set; }
+    public TipoProgramacion Programacion { get; set; } = TipoProgramacion.BajoDemanda;
+    public string? HoraDelDia { get; set; }
+    public int? DiaDeLaSemana { get; set; }
+    public int? DiaDelMes { get; set; }
+    public DateTime? ProximaCorrida { get; set; }
+    public DateTime? UltimaCorrida { get; set; }
 
-    public List<StepDefinition> Steps { get; set; } = new();
-    public string TargetTable { get; set; } = "";
-    public WriteMode WriteMode { get; set; } = WriteMode.Append;
+    public List<StepDefinition> Pasos { get; set; } = new();
+    public string TablaDestino { get; set; } = "";
+    public ModoEscritura ModoEscritura { get; set; } = ModoEscritura.Agregar;
 
-    public List<Guid> RunAfter { get; set; } = new();
+    public List<Guid> CorrerDespuesDe { get; set; } = new();
 
-    public int BatchSize { get; set; } = 5_000;
+    public int FilasPorLote { get; set; } = 5_000;
 }
 ```
 
@@ -346,7 +357,7 @@ namespace DataPipeline.Core.Abstractions;
 /// <summary>Sink interno + lectura para la entrega. Aísla el motor de la BD concreta.</summary>
 public interface IDataStore
 {
-    Task EnsureTableAsync(string table, IReadOnlyList<string> columns, WriteMode mode, CancellationToken ct);
+    Task EnsureTableAsync(string table, IReadOnlyList<string> columns, ModoEscritura mode, CancellationToken ct);
     Task WriteBatchAsync(string table, RecordBatch batch, CancellationToken ct);
     Task<RecordBatch> ReadPagedAsync(string table, int page, int pageSize, CancellationToken ct);
 }
@@ -514,7 +525,7 @@ git commit -m "feat(connectors): EncryptionService AES-256 extraído de Consulta
 - Modify: `tests/DataPipeline.Tests/DataPipeline.Tests.csproj` (agregar `Microsoft.Data.Sqlite` para los tests)
 
 **Interfaces:**
-- Consumes: `IDataStore`, `RecordBatch`, `Record`, `WriteMode` (Task 2).
+- Consumes: `IDataStore`, `RecordBatch`, `Record`, `ModoEscritura` (Task 2).
 - Produces: `class SqliteDataStore : IDataStore` con constructor `SqliteDataStore(string connectionString)` (ej. `"Data Source=ruta.db"`).
 
 - [ ] **Step 1: Agregar el paquete Microsoft.Data.Sqlite**
@@ -556,7 +567,7 @@ public class SqliteDataStoreTests
         var store = new SqliteDataStore(NuevaDb());
         var cols = new[] { "id", "nombre" };
 
-        await store.EnsureTableAsync("t", cols, WriteMode.Append, CancellationToken.None);
+        await store.EnsureTableAsync("t", cols, ModoEscritura.Agregar, CancellationToken.None);
         await store.WriteBatchAsync("t", Lote((1, "a"), (2, "b")), CancellationToken.None);
 
         var pagina = await store.ReadPagedAsync("t", page: 1, pageSize: 10, CancellationToken.None);
@@ -573,10 +584,10 @@ public class SqliteDataStoreTests
         var store = new SqliteDataStore(cs);
         var cols = new[] { "id", "nombre" };
 
-        await store.EnsureTableAsync("t", cols, WriteMode.Append, CancellationToken.None);
+        await store.EnsureTableAsync("t", cols, ModoEscritura.Agregar, CancellationToken.None);
         await store.WriteBatchAsync("t", Lote((1, "viejo")), CancellationToken.None);
 
-        await store.EnsureTableAsync("t", cols, WriteMode.Replace, CancellationToken.None);
+        await store.EnsureTableAsync("t", cols, ModoEscritura.Reemplazar, CancellationToken.None);
         await store.WriteBatchAsync("t", Lote((2, "nuevo")), CancellationToken.None);
 
         var pagina = await store.ReadPagedAsync("t", 1, 10, CancellationToken.None);
@@ -589,7 +600,7 @@ public class SqliteDataStoreTests
     {
         var store = new SqliteDataStore(NuevaDb());
         await Assert.ThrowsAsync<NotSupportedException>(() =>
-            store.EnsureTableAsync("t", new[] { "id" }, WriteMode.Upsert, CancellationToken.None));
+            store.EnsureTableAsync("t", new[] { "id" }, ModoEscritura.Combinar, CancellationToken.None));
     }
 }
 ```
@@ -617,17 +628,17 @@ public sealed class SqliteDataStore : IDataStore
 
     public SqliteDataStore(string connectionString) => _connectionString = connectionString;
 
-    public async Task EnsureTableAsync(string table, IReadOnlyList<string> columns, WriteMode mode, CancellationToken ct)
+    public async Task EnsureTableAsync(string table, IReadOnlyList<string> columns, ModoEscritura mode, CancellationToken ct)
     {
-        if (mode == WriteMode.Upsert)
-            throw new NotSupportedException("WriteMode.Upsert se implementa en Fase 4.");
+        if (mode == ModoEscritura.Combinar)
+            throw new NotSupportedException("ModoEscritura.Combinar (upsert) se implementa en Fase 4.");
         if (columns.Count == 0)
             throw new ArgumentException("No se puede crear una tabla sin columnas.", nameof(columns));
 
         await using var con = new SqliteConnection(_connectionString);
         await con.OpenAsync(ct);
 
-        if (mode == WriteMode.Replace)
+        if (mode == ModoEscritura.Reemplazar)
         {
             await using var drop = con.CreateCommand();
             drop.CommandText = $"DROP TABLE IF EXISTS {Quote(table)};";
@@ -734,7 +745,7 @@ git commit -m "feat(connectors): SqliteDataStore (Append/Replace + ReadPaged)"
 **Interfaces:**
 - Consumes: `Record`, `RecordBatch`, `ISource`, `RunContext` (Task 2).
 - Produces:
-  - `static class RecordBatcher` con `static IAsyncEnumerable<RecordBatch> Batch(IReadOnlyList<string> columnas, IAsyncEnumerable<Record> filas, int tamañoLote, CancellationToken ct)`
+  - `static class RecordBatcher` con `static IAsyncEnumerable<RecordBatch> Batch(IReadOnlyList<string> columnas, IAsyncEnumerable<Record> filas, int tamanoLote, CancellationToken ct)`
   - `class SqlServerSource : ISource` con constructor `SqlServerSource(string connectionString, string sql, bool connectionStringEncrypted)`
 
 - [ ] **Step 1: Escribir el test que falla (RecordBatcher)**
@@ -760,11 +771,11 @@ public class RecordBatcherTests
     }
 
     [Fact]
-    public async Task Agrupa_en_lotes_del_tamaño_pedido_con_resto_final()
+    public async Task Agrupa_en_lotes_del_tamano_pedido_con_resto_final()
     {
         var cols = new[] { "n" };
         var lotes = new List<int>();
-        await foreach (var lote in RecordBatcher.Batch(cols, Generar(7), tamañoLote: 3, CancellationToken.None))
+        await foreach (var lote in RecordBatcher.Batch(cols, Generar(7), tamanoLote: 3, CancellationToken.None))
             lotes.Add(lote.Rows.Count);
 
         Assert.Equal(new[] { 3, 3, 1 }, lotes);
@@ -803,19 +814,19 @@ public static class RecordBatcher
     public static async IAsyncEnumerable<RecordBatch> Batch(
         IReadOnlyList<string> columnas,
         IAsyncEnumerable<Record> filas,
-        int tamañoLote,
+        int tamanoLote,
         [EnumeratorCancellation] CancellationToken ct)
     {
-        if (tamañoLote <= 0) tamañoLote = 5_000;
+        if (tamanoLote <= 0) tamanoLote = 5_000;
 
-        var buffer = new List<Record>(tamañoLote);
+        var buffer = new List<Record>(tamanoLote);
         await foreach (var fila in filas.WithCancellation(ct))
         {
             buffer.Add(fila);
-            if (buffer.Count >= tamañoLote)
+            if (buffer.Count >= tamanoLote)
             {
                 yield return new RecordBatch { Columns = columnas, Rows = buffer };
-                buffer = new List<Record>(tamañoLote);
+                buffer = new List<Record>(tamanoLote);
             }
         }
         if (buffer.Count > 0)
@@ -913,7 +924,7 @@ git commit -m "feat(connectors): RecordBatcher + SqlServerSource en streaming"
 - Test: `tests/DataPipeline.Tests/SourceFactoryTests.cs`
 
 **Interfaces:**
-- Consumes: `ISourceFactory`, `StepDefinition`, `StepKind`, `SqlServerSource` (Tasks 2, 5).
+- Consumes: `ISourceFactory`, `StepDefinition`, `TipoPaso`, `SqlServerSource` (Tasks 2, 5).
 - Produces: `class SourceFactory : ISourceFactory`.
 
 - [ ] **Step 1: Escribir el test que falla**
@@ -935,10 +946,10 @@ public class SourceFactoryTests
         var factory = new SourceFactory();
         var step = new StepDefinition
         {
-            Name = "leer",
-            Kind = StepKind.Source,
-            Type = "SqlServerSource",
-            Config = new() { ["connectionString"] = "Server=x;", ["sql"] = "SELECT 1" }
+            Nombre = "leer",
+            Tipo = TipoPaso.Origen,
+            Conector = "SqlServerSource",
+            Configuracion = new() { ["connectionString"] = "Server=x;", ["sql"] = "SELECT 1" }
         };
 
         var source = factory.Create(step);
@@ -950,7 +961,7 @@ public class SourceFactoryTests
     public void Falta_config_requerida_lanza()
     {
         var factory = new SourceFactory();
-        var step = new StepDefinition { Name = "leer", Kind = StepKind.Source, Type = "SqlServerSource" };
+        var step = new StepDefinition { Nombre = "leer", Tipo = TipoPaso.Origen, Conector = "SqlServerSource" };
 
         Assert.Throws<ArgumentException>(() => factory.Create(step));
     }
@@ -959,7 +970,7 @@ public class SourceFactoryTests
     public void Tipo_no_soportado_lanza()
     {
         var factory = new SourceFactory();
-        var step = new StepDefinition { Name = "x", Kind = StepKind.Source, Type = "KafkaSource" };
+        var step = new StepDefinition { Nombre = "x", Tipo = TipoPaso.Origen, Conector = "KafkaSource" };
 
         Assert.Throws<NotSupportedException>(() => factory.Create(step));
     }
@@ -986,24 +997,24 @@ public sealed class SourceFactory : ISourceFactory
 {
     public ISource Create(StepDefinition step)
     {
-        if (step.Kind != StepKind.Source)
-            throw new ArgumentException($"El paso '{step.Name}' no es un Source.", nameof(step));
+        if (step.Tipo != TipoPaso.Origen)
+            throw new ArgumentException($"El paso '{step.Nombre}' no es un Origen.", nameof(step));
 
-        return step.Type switch
+        return step.Conector switch
         {
             "SqlServerSource" => new SqlServerSource(
                 Requerido(step, "connectionString"),
                 Requerido(step, "sql"),
-                step.Config.TryGetValue("connectionStringEncrypted", out var e)
+                step.Configuracion.TryGetValue("connectionStringEncrypted", out var e)
                     && bool.TryParse(e, out var b) && b),
-            _ => throw new NotSupportedException($"Tipo de source no soportado en Fase 1: '{step.Type}'.")
+            _ => throw new NotSupportedException($"Conector de origen no soportado en Fase 1: '{step.Conector}'.")
         };
     }
 
     private static string Requerido(StepDefinition step, string clave) =>
-        step.Config.TryGetValue(clave, out var v) && !string.IsNullOrWhiteSpace(v)
+        step.Configuracion.TryGetValue(clave, out var v) && !string.IsNullOrWhiteSpace(v)
             ? v
-            : throw new ArgumentException($"El source '{step.Name}' requiere la config '{clave}'.", nameof(step));
+            : throw new ArgumentException($"El origen '{step.Nombre}' requiere la config '{clave}'.", nameof(step));
 }
 ```
 
@@ -1032,7 +1043,7 @@ git commit -m "feat(connectors): SourceFactory resuelve SqlServerSource por tipo
 - Test: `tests/DataPipeline.Tests/PipelineJsonLoaderTests.cs`
 
 **Interfaces:**
-- Consumes: `ISourceFactory`, `IDataStore`, `IEncryptionService`, `PipelineDefinition`, `StepKind`, `RunContext`, `RecordBatch`, `SqliteDataStore` (Tasks 2, 4).
+- Consumes: `ISourceFactory`, `IDataStore`, `IEncryptionService`, `PipelineDefinition`, `TipoPaso`, `RunContext`, `RecordBatch`, `SqliteDataStore` (Tasks 2, 4).
 - Produces:
   - `record RunResult(Guid RunId, bool Success, long RowsRead, long RowsWritten, string? Error, TimeSpan Duration)`
   - `class PipelineRunner(ISourceFactory sourceFactory, IDataStore dataStore)` con `Task<RunResult> RunAsync(PipelineDefinition def, IReadOnlyDictionary<string,string> parameters, IEncryptionService encryption, CancellationToken ct = default)`
@@ -1110,11 +1121,11 @@ public class PipelineRunnerTests
     private static PipelineDefinition DefMinima() => new()
     {
         Id = Guid.NewGuid(),
-        Name = "p",
-        TargetTable = "destino",
-        WriteMode = WriteMode.Append,
-        BatchSize = 2,
-        Steps = { new StepDefinition { Name = "leer", Kind = StepKind.Source, Type = "Fake" } }
+        Nombre = "p",
+        TablaDestino = "destino",
+        ModoEscritura = ModoEscritura.Agregar,
+        FilasPorLote = 2,
+        Pasos = { new StepDefinition { Nombre = "leer", Tipo = TipoPaso.Origen, Conector = "Fake" } }
     };
 
     [Fact]
@@ -1143,7 +1154,7 @@ public class PipelineRunnerTests
     {
         var store = new SqliteDataStore(NuevaDb());
         var def = DefMinima();
-        def.Steps.Add(new StepDefinition { Name = "t", Kind = StepKind.Transform, Type = "X" });
+        def.Pasos.Add(new StepDefinition { Nombre = "t", Tipo = TipoPaso.Transformacion, Conector = "X" });
         var source = new FakeSource(new[] { "id" }, Array.Empty<Record>(), 5);
         var runner = new PipelineRunner(new FakeSourceFactory(source), store);
 
@@ -1210,11 +1221,11 @@ public sealed class PipelineRunner
 
         try
         {
-            if (def.Steps.Any(s => s.Kind == StepKind.Transform))
+            if (def.Pasos.Any(s => s.Tipo == TipoPaso.Transformacion))
                 throw new NotSupportedException("Las transformaciones (Transform) llegan en Fase 2.");
 
-            var pasoSource = def.Steps.SingleOrDefault(s => s.Kind == StepKind.Source)
-                ?? throw new InvalidOperationException("El pipeline necesita exactamente un Source.");
+            var pasoSource = def.Pasos.SingleOrDefault(s => s.Tipo == TipoPaso.Origen)
+                ?? throw new InvalidOperationException("El pipeline necesita exactamente un Origen.");
 
             var source = _sourceFactory.Create(pasoSource);
             var ctx = new RunContext
@@ -1223,7 +1234,7 @@ public sealed class PipelineRunner
                 RunId = runId,
                 Parameters = parameters,
                 Encryption = encryption,
-                BatchSize = def.BatchSize
+                BatchSize = def.FilasPorLote
             };
 
             var tablaLista = false;
@@ -1234,10 +1245,10 @@ public sealed class PipelineRunner
 
                 if (!tablaLista)
                 {
-                    await _dataStore.EnsureTableAsync(def.TargetTable, lote.Columns, def.WriteMode, ct);
+                    await _dataStore.EnsureTableAsync(def.TablaDestino, lote.Columns, def.ModoEscritura, ct);
                     tablaLista = true;
                 }
-                await _dataStore.WriteBatchAsync(def.TargetTable, lote, ct);
+                await _dataStore.WriteBatchAsync(def.TablaDestino, lote, ct);
                 escritas += lote.Rows.Count;
             }
 
@@ -1272,20 +1283,20 @@ public class PipelineJsonLoaderTests
 {
     private const string Json = """
     {
-      "name": "ventas_a_serving",
-      "enabled": true,
-      "schedule": "Daily",
-      "timeOfDay": "02:30",
-      "batchSize": 5000,
-      "targetTable": "serving_ventas",
-      "writeMode": "Replace",
-      "runAfter": [],
-      "steps": [
+      "nombre": "ventas_a_serving",
+      "habilitado": true,
+      "programacion": "Diaria",
+      "horaDelDia": "02:30",
+      "filasPorLote": 5000,
+      "tablaDestino": "serving_ventas",
+      "modoEscritura": "Reemplazar",
+      "correrDespuesDe": [],
+      "pasos": [
         {
-          "name": "leer_ventas",
-          "kind": "Source",
-          "type": "SqlServerSource",
-          "config": { "connectionString": "Server=x;", "sql": "SELECT 1 AS n" }
+          "nombre": "leer_ventas",
+          "tipo": "Origen",
+          "conector": "SqlServerSource",
+          "configuracion": { "connectionString": "Server=x;", "sql": "SELECT 1 AS n" }
         }
       ]
     }
@@ -1296,15 +1307,15 @@ public class PipelineJsonLoaderTests
     {
         var def = PipelineJsonLoader.Load(Json);
 
-        Assert.Equal("ventas_a_serving", def.Name);
-        Assert.Equal(ScheduleKind.Daily, def.Schedule);
-        Assert.Equal("serving_ventas", def.TargetTable);
-        Assert.Equal(WriteMode.Replace, def.WriteMode);
-        Assert.Equal(5000, def.BatchSize);
-        Assert.Single(def.Steps);
-        Assert.Equal(StepKind.Source, def.Steps[0].Kind);
-        Assert.Equal("SqlServerSource", def.Steps[0].Type);
-        Assert.Equal("SELECT 1 AS n", def.Steps[0].Config["sql"]);
+        Assert.Equal("ventas_a_serving", def.Nombre);
+        Assert.Equal(TipoProgramacion.Diaria, def.Programacion);
+        Assert.Equal("serving_ventas", def.TablaDestino);
+        Assert.Equal(ModoEscritura.Reemplazar, def.ModoEscritura);
+        Assert.Equal(5000, def.FilasPorLote);
+        Assert.Single(def.Pasos);
+        Assert.Equal(TipoPaso.Origen, def.Pasos[0].Tipo);
+        Assert.Equal("SqlServerSource", def.Pasos[0].Conector);
+        Assert.Equal("SELECT 1 AS n", def.Pasos[0].Configuracion["sql"]);
     }
 
     [Fact]
@@ -1422,19 +1433,19 @@ return result.Success ? 0 : 2;
 `E:\Sistemas\MiddleWare\ejemplos\ventas_a_serving.json`:
 ```json
 {
-  "name": "ventas_a_serving",
-  "enabled": true,
-  "schedule": "OnDemand",
-  "batchSize": 5000,
-  "targetTable": "serving_ventas",
-  "writeMode": "Replace",
-  "runAfter": [],
-  "steps": [
+  "nombre": "ventas_a_serving",
+  "habilitado": true,
+  "programacion": "BajoDemanda",
+  "filasPorLote": 5000,
+  "tablaDestino": "serving_ventas",
+  "modoEscritura": "Reemplazar",
+  "correrDespuesDe": [],
+  "pasos": [
     {
-      "name": "leer_ventas",
-      "kind": "Source",
-      "type": "SqlServerSource",
-      "config": {
+      "nombre": "leer_ventas",
+      "tipo": "Origen",
+      "conector": "SqlServerSource",
+      "configuracion": {
         "connectionString": "Server=POSSERVER;Database=ventas;Trusted_Connection=True;TrustServerCertificate=True;",
         "sql": "SELECT TOP 1000 sucursal, fecha, monto, cantidad FROM ventas"
       }
@@ -1490,4 +1501,6 @@ git commit -m "feat(cli): harness de ejecución de pipelines desde JSON + ejempl
 
 **3. Type consistency:** verificado contra el bloque Interfaces de cada tarea — `RecordBatch{Columns,Rows}`, `Record{Values}`, `IDataStore.EnsureTableAsync(table,columns,mode,ct)`/`WriteBatchAsync(table,batch,ct)`/`ReadPagedAsync(table,page,pageSize,ct)`, `ISource.ReadAsync(ctx,ct)`, `RunContext{PipelineId,RunId,Parameters,Encryption,BatchSize}`, `ISourceFactory.Create(step)`, `PipelineRunner(sourceFactory,dataStore).RunAsync(def,parameters,encryption,ct)`, `RunResult(RunId,Success,RowsRead,RowsWritten,Error,Duration)`, `PipelineJsonLoader.Load(json)` — nombres usados de forma idéntica en todas las tareas.
 
-**4. Notas de alcance:** `ITransform` se define pero no se implementa (Fase 2); `WriteMode.Upsert` lanza `NotSupportedException` (Fase 4); `RunAfter`/`DataStoreSource`/scheduler/API PULL quedan fuera de Fase 1 por diseño.
+**4. Notas de alcance:** `ITransform` se define pero no se implementa (Fase 2); `ModoEscritura.Combinar` (upsert) lanza `NotSupportedException` (Fase 4); `CorrerDespuesDe`/`DataStoreSource`/scheduler/API PULL quedan fuera de Fase 1 por diseño.
+
+**5. Convención de idioma (Opción 2):** los enums (`TipoPaso`/`TipoProgramacion`/`ModoEscritura` + valores) y las propiedades de `PipelineDefinition`/`StepDefinition` van en castellano; interfaces, tipos técnicos de runtime (`Record`/`RecordBatch`/`RunContext`/`RunResult`), servicios y métodos en inglés. Ver el "Mapa de nombres" en Global Constraints — es la referencia canónica.

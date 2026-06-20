@@ -217,46 +217,48 @@ No mezclar; tienen requisitos distintos:
 
 Definición declarativa (config) + contratos de runtime.
 
+> **Convención de idioma (Opción 2):** los **enums** (tipo + valores) y las **propiedades** de los tipos de dominio/config (`PipelineDefinition`, `StepDefinition`) van **en castellano**; las **interfaces, tipos técnicos de runtime** (`Record`, `RecordBatch`, `RunContext`), **servicios** y **métodos** quedan **en inglés** con los modismos .NET (`I`, `Async`, `CancellationToken`). Sin tildes ni `ñ` en identificadores. La referencia canónica de nombres está en el plan de Fase 1 (`docs/superpowers/plans/2026-06-19-datapipeline-fase1.md`, sección Global Constraints → "Mapa de nombres").
+
 ### Definición (lo que se persiste / edita — almacén A)
 ```csharp
 public sealed class PipelineDefinition
 {
-    public Guid    Id { get; init; }
-    public string  Name { get; init; } = "";
-    public bool    Enabled { get; init; } = true;
+    public Guid    Id { get; set; }
+    public string  Nombre { get; set; } = "";
+    public bool    Habilitado { get; set; } = true;
 
-    // Programación (molde de EmailSchedule): frecuencia + hora, con NextRunAt persistido.
-    public ScheduleKind Schedule { get; init; } = ScheduleKind.OnDemand; // OnDemand | Daily | Weekly | Monthly
-    public string? TimeOfDay { get; init; }        // "HH:mm"
-    public int?    DayOfWeek { get; init; }         // Weekly
-    public int?    DayOfMonth { get; init; }        // Monthly
-    public DateTime? NextRunAt { get; set; }
-    public DateTime? LastRunAt { get; set; }
+    // Programación (molde de EmailSchedule): frecuencia + hora, con ProximaCorrida persistida.
+    public TipoProgramacion Programacion { get; set; } = TipoProgramacion.BajoDemanda;
+    public string? HoraDelDia { get; set; }         // "HH:mm"
+    public int?    DiaDeLaSemana { get; set; }      // Semanal
+    public int?    DiaDelMes { get; set; }          // Mensual
+    public DateTime? ProximaCorrida { get; set; }
+    public DateTime? UltimaCorrida { get; set; }
 
-    public List<StepDefinition> Steps { get; init; } = new();   // ordenados (Source + Transforms)
-    public string TargetTable { get; init; } = "";              // tabla destino en el almacén B
-    public WriteMode WriteMode { get; init; } = WriteMode.Replace; // Append | Upsert | Replace
+    public List<StepDefinition> Pasos { get; set; } = new();    // ordenados (Origen + Transformaciones)
+    public string TablaDestino { get; set; } = "";             // tabla destino en el almacén B
+    public ModoEscritura ModoEscritura { get; set; } = ModoEscritura.Reemplazar;
 
-    public List<Guid> RunAfter { get; init; } = new();          // encadenamiento (sección 14)
+    public List<Guid> CorrerDespuesDe { get; set; } = new();    // encadenamiento (sección 14)
 
-    public RetryPolicy Retry { get; init; } = RetryPolicy.Default;
-    public int     BatchSize { get; init; } = 5_000;            // filas por lote
+    public int     FilasPorLote { get; set; } = 5_000;
+    // Nota: RetryPolicy Retry se agrega en Fase 4 (confiabilidad).
 }
 
 public sealed class StepDefinition
 {
-    public string Name { get; init; } = "";
-    public StepKind Kind { get; init; }                // Source | Transform
-    public string  Type { get; init; } = "";           // ej: "SqlServerSource", "DataStoreSource", "ColumnMapTransform"
-    public Dictionary<string, string> Config { get; init; } = new();
+    public string Nombre { get; set; } = "";
+    public TipoPaso Tipo { get; set; }                 // Origen | Transformacion
+    public string  Conector { get; set; } = "";        // ej: "SqlServerSource", "DataStoreSource", "ColumnMapTransform"
+    public Dictionary<string, string> Configuracion { get; set; } = new();
 }
 
-public enum StepKind { Source, Transform }   // el "Sink" interno es fijo: escribir a TargetTable
-public enum ScheduleKind { OnDemand, Daily, Weekly, Monthly }
-public enum WriteMode { Append, Upsert, Replace }
+public enum TipoPaso { Origen, Transformacion }   // el "Sink" interno es fijo: escribir a TablaDestino
+public enum TipoProgramacion { BajoDemanda, Diaria, Semanal, Mensual }
+public enum ModoEscritura { Agregar, Combinar, Reemplazar }
 ```
 
-> El **sink interno** (escribir a `TargetTable` vía `IDataStore`) es implícito y fijo en todo pipeline. Por eso los `Steps` son **Source + Transforms**. La entrega (PULL/PUSH) es una capa aparte sobre la tabla.
+> El **sink interno** (escribir a `TablaDestino` vía `IDataStore`) es implícito y fijo en todo pipeline. Por eso los `Pasos` son **Origen + Transformaciones**. La entrega (PULL/PUSH) es una capa aparte sobre la tabla.
 
 ### Runtime: el dato en vuelo
 ```csharp
@@ -611,30 +613,30 @@ Persistir en la **BD de metadatos del middleware (almacén A)**:
 ### A) Ejemplo de definición de pipeline (JSON)
 ```json
 {
-  "name": "ventas_a_serving",
-  "enabled": true,
-  "schedule": "Daily",
-  "timeOfDay": "02:30",
-  "batchSize": 5000,
-  "targetTable": "serving_ventas",
-  "writeMode": "Upsert",
-  "runAfter": [],
-  "steps": [
+  "nombre": "ventas_a_serving",
+  "habilitado": true,
+  "programacion": "Diaria",
+  "horaDelDia": "02:30",
+  "filasPorLote": 5000,
+  "tablaDestino": "serving_ventas",
+  "modoEscritura": "Combinar",
+  "correrDespuesDe": [],
+  "pasos": [
     {
-      "name": "leer_ventas",
-      "kind": "Source",
-      "type": "SqlServerSource",
-      "config": {
+      "nombre": "leer_ventas",
+      "tipo": "Origen",
+      "conector": "SqlServerSource",
+      "configuracion": {
         "dataSourceId": "POSSERVER",
         "sql": "SELECT sucursal, fecha, monto, cantidad FROM ventas WHERE fecha > @watermark",
         "watermarkColumn": "fecha"
       }
     },
     {
-      "name": "normalizar",
-      "kind": "Transform",
-      "type": "ColumnMapTransform",
-      "config": {
+      "nombre": "normalizar",
+      "tipo": "Transformacion",
+      "conector": "ColumnMapTransform",
+      "configuracion": {
         "rename": { "monto": "importe" },
         "cast":   { "importe": "decimal", "fecha": "date" },
         "filter": "importe > 0"
@@ -643,28 +645,28 @@ Persistir en la **BD de metadatos del middleware (almacén A)**:
   ]
 }
 ```
-> El sink interno (escribir a `serving_ventas` vía `IDataStore`, `Upsert` por clave) es implícito. La entrega PULL se hace luego con `GET /api/data/ventas_a_serving`.
+> El sink interno (escribir a `serving_ventas` vía `IDataStore`, `Combinar`/upsert por clave) es implícito. La entrega PULL se hace luego con `GET /api/data/ventas_a_serving`.
 
 ### B) Ejemplo de encadenamiento (JSON)
 ```json
 {
-  "name": "consolidado_dw",
-  "enabled": true,
-  "schedule": "OnDemand",
-  "targetTable": "dw_consolidado",
-  "writeMode": "Replace",
-  "runAfter": ["<id de ventas_a_serving>"],
-  "steps": [
+  "nombre": "consolidado_dw",
+  "habilitado": true,
+  "programacion": "BajoDemanda",
+  "tablaDestino": "dw_consolidado",
+  "modoEscritura": "Reemplazar",
+  "correrDespuesDe": ["<id de ventas_a_serving>"],
+  "pasos": [
     {
-      "name": "leer_serving",
-      "kind": "Source",
-      "type": "DataStoreSource",
-      "config": { "sourceTable": "serving_ventas" }
+      "nombre": "leer_serving",
+      "tipo": "Origen",
+      "conector": "DataStoreSource",
+      "configuracion": { "sourceTable": "serving_ventas" }
     }
   ]
 }
 ```
-> `consolidado_dw` corre **después** de `ventas_a_serving` (`runAfter`) y **lee su tabla** (`DataStoreSource`): encadenamiento de control + datos.
+> `consolidado_dw` corre **después** de `ventas_a_serving` (`correrDespuesDe`) y **lee su tabla** (`DataStoreSource`): encadenamiento de control + datos.
 
 ### C) Glosario
 - **Source:** paso que lee de un origen.
