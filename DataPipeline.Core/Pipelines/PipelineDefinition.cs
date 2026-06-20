@@ -4,21 +4,21 @@ namespace DataPipeline.Core.Pipelines;
 public sealed class PipelineDefinition
 {
     public Guid Id { get; set; }
-    public string Name { get; set; } = "";
-    public bool Enabled { get; set; } = true;
+    public string Nombre { get; set; } = "";
+    public bool Habilitado { get; set; } = true;
 
-    public ScheduleKind Schedule { get; set; } = ScheduleKind.OnDemand;
-    public string? TimeOfDay { get; set; }
-    public int? DayOfWeek { get; set; }
-    public int? DayOfMonth { get; set; }
-    public DateTime? NextRunAt { get; set; }
-    public DateTime? LastRunAt { get; set; }
+    public TipoProgramacion Programacion { get; set; } = TipoProgramacion.BajoDemanda;
+    public string? HoraDelDia { get; set; }
+    public int? DiaDeLaSemana { get; set; }
+    public int? DiaDelMes { get; set; }
+    public DateTime? ProximaCorrida { get; set; }
+    public DateTime? UltimaCorrida { get; set; }
 
-    public List<StepDefinition> Steps { get; set; } = new();
-    public string TargetTable { get; set; } = "";
-    public WriteMode WriteMode { get; set; } = WriteMode.Append;
+    public List<StepDefinition> Pasos { get; set; } = new();
+    public string TablaDestino { get; set; } = "";
+    public ModoEscritura ModoEscritura { get; set; } = ModoEscritura.Agregar;
 
-    public List<Guid> RunAfter { get; set; } = new();
+    public List<Guid> CorrerDespuesDe { get; set; } = new();
 
-    public int BatchSize { get; set; } = 5_000;
+    public int FilasPorLote { get; set; } = 5_000;
 }
