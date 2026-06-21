@@ -1,0 +1,62 @@
+@page "/pipelines"
+@inject PipelinesAdminService Pipelines
+
+<PageTitle>Pipelines — Admin</PageTitle>
+
+<h1>Pipelines</h1>
+
+@if (_mensaje is not null)
+{
+    <div class="alert @(_mensajeOk ? "alert-success" : "alert-danger")" role="alert">@_mensaje</div>
+}
+
+<SfGrid DataSource="_items" AllowPaging="true" AllowSorting="true">
+    <GridPageSettings PageSize="15"></GridPageSettings>
+    <GridColumns>
+        <GridColumn Field="@nameof(PipelineDefinition.Nombre)" HeaderText="Nombre"></GridColumn>
+        <GridColumn Field="@nameof(PipelineDefinition.Habilitado)" HeaderText="Habilitado" Width="110"></GridColumn>
+        <GridColumn Field="@nameof(PipelineDefinition.Programacion)" HeaderText="Programacion" Width="140"></GridColumn>
+        <GridColumn Field="@nameof(PipelineDefinition.ProximaCorrida)" HeaderText="Proxima" Type="ColumnType.DateTime" Format="g" Width="170"></GridColumn>
+        <GridColumn Field="@nameof(PipelineDefinition.UltimaCorrida)" HeaderText="Ultima" Type="ColumnType.DateTime" Format="g" Width="170"></GridColumn>
+        <GridColumn Field="@nameof(PipelineDefinition.TablaDestino)" HeaderText="Tabla destino"></GridColumn>
+        <GridColumn HeaderText="Acciones" Width="150">
+            <Template Context="ctx">
+                @{ var p = (PipelineDefinition)ctx; }
+                <SfButton CssClass="e-small e-primary" Disabled="_corriendo" OnClick="@(() => Correr(p.Id))">Correr ahora</SfButton>
+            </Template>
+        </GridColumn>
+    </GridColumns>
+</SfGrid>
+
+@code {
+    private List<PipelineDefinition> _items = new();
+    private bool _corriendo;
+    private string? _mensaje;
+    private bool _mensajeOk;
+
+    protected override async Task OnInitializedAsync() => _items = await Pipelines.ObtenerTodosAsync();
+
+    private async Task Correr(Guid id)
+    {
+        _corriendo = true;
+        _mensaje = null;
+        try
+        {
+            var r = await Pipelines.CorrerAsync(id);
+            if (r is null)
+            {
+                _mensaje = "No se pudo correr (revisa la API o las credenciales).";
+                _mensajeOk = false;
+            }
+            else
+            {
+                _mensajeOk = r.Success;
+                _mensaje = r.Success
+                    ? $"Corrida OK: leidas {r.RowsRead}, escritas {r.RowsWritten}."
+                    : $"Corrida con error: {r.Error}";
+            }
+            _items = await Pipelines.ObtenerTodosAsync();
+        }
+        finally { _corriendo = false; }
+    }
+}

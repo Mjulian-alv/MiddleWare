@@ -1,0 +1,24 @@
+@page "/runs"
+@inject RunsAdminService Runs
+
+<PageTitle>Corridas — Admin</PageTitle>
+
+<h1>Corridas</h1>
+
+<SfGrid DataSource="_items" AllowPaging="true" AllowSorting="true">
+    <GridPageSettings PageSize="20"></GridPageSettings>
+    <GridColumns>
+        <GridColumn Field="@nameof(PipelineRun.Inicio)" HeaderText="Inicio" Type="ColumnType.DateTime" Format="g" Width="170"></GridColumn>
+        <GridColumn Field="@nameof(PipelineRun.Fin)" HeaderText="Fin" Type="ColumnType.DateTime" Format="g" Width="170"></GridColumn>
+        <GridColumn Field="@nameof(PipelineRun.Estado)" HeaderText="Estado" Width="110"></GridColumn>
+        <GridColumn Field="@nameof(PipelineRun.FilasLeidas)" HeaderText="Leidas" Width="100"></GridColumn>
+        <GridColumn Field="@nameof(PipelineRun.FilasEscritas)" HeaderText="Escritas" Width="100"></GridColumn>
+        <GridColumn Field="@nameof(PipelineRun.Mensaje)" HeaderText="Mensaje"></GridColumn>
+    </GridColumns>
+</SfGrid>
+
+@code {
+    private List<PipelineRun> _items = new();
+
+    protected override async Task OnInitializedAsync() => _items = await Runs.ObtenerRecientesAsync(50);
+}
