@@ -31,8 +31,6 @@ public sealed class DataSourcesController : ControllerBase
     private static DataSourceVista AVista(DataSource d) =>
         new(d.Id, d.Nombre, d.Tipo, d.Activo, d.CreatedAt, d.UpdatedAt, !string.IsNullOrEmpty(d.ConnectionString));
 
-    private string? Enc(string? plano) => string.IsNullOrEmpty(plano) ? null : _enc.Encrypt(plano);
-
     [HttpGet]
     public async Task<IActionResult> GetAll(CancellationToken ct) =>
         Ok((await _store.GetAllAsync(ct)).Select(AVista));
@@ -50,14 +48,18 @@ public sealed class DataSourcesController : ControllerBase
         var id = req.Id == Guid.Empty ? Guid.NewGuid() : req.Id;
         var existente = req.Id == Guid.Empty ? null : await _store.GetByIdAsync(id, ct);
 
+        // Secreto vacio en update = conservar el anterior (evita borrarlo al editar otros campos).
+        string? Secreto(string? plano, string? anterior) =>
+            string.IsNullOrEmpty(plano) ? anterior : _enc.Encrypt(plano);
+
         var ds = new DataSource
         {
             Id = id,
             Nombre = req.Nombre,
             Tipo = req.Tipo,
-            ConnectionString = Enc(req.ConnectionString),
-            Username = Enc(req.Username),
-            Password = Enc(req.Password),
+            ConnectionString = Secreto(req.ConnectionString, existente?.ConnectionString),
+            Username = Secreto(req.Username, existente?.Username),
+            Password = Secreto(req.Password, existente?.Password),
             BaseUrl = req.BaseUrl,
             FilePath = req.FilePath,
             Activo = req.Activo,

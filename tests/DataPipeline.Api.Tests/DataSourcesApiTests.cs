@@ -57,6 +57,28 @@ public class DataSourcesApiTests : IClassFixture<ApiFactory>
         Assert.Equal(HttpStatusCode.NotFound, (await c.GetAsync($"/api/datasources/{creado.Id}")).StatusCode);
     }
 
+    [Fact]
+    public async Task Update_sin_reenviar_secreto_conserva_el_anterior()
+    {
+        var c = _factory.CreateClient();
+        c.DefaultRequestHeaders.Authorization = ApiFactory.CredAdmin();
+
+        // Crear con connectionString
+        var crear = new Upsert(Guid.Empty, $"ds_{Guid.NewGuid():N}", 0, "Server=A;Database=db;",
+            null, null, null, null, true);
+        var creado = await (await c.PostAsJsonAsync("/api/datasources", crear)).Content.ReadFromJsonAsync<RespId>();
+
+        // Update con el MISMO id, nombre cambiado y ConnectionString=null (no se reenvia el secreto)
+        var actualizar = new Upsert(creado!.Id, $"ren_{Guid.NewGuid():N}", 0, null, null, null, null, null, true);
+        var post = await c.PostAsJsonAsync("/api/datasources", actualizar);
+        Assert.Equal(HttpStatusCode.OK, post.StatusCode);
+
+        // La connectionString anterior se conservo (no se borro)
+        var vista = await c.GetFromJsonAsync<Vista>($"/api/datasources/{creado.Id}");
+        Assert.NotNull(vista);
+        Assert.True(vista!.TieneConnectionString);
+    }
+
     private sealed record ProbarResp(bool Ok, string? Error);
 
     [Fact]

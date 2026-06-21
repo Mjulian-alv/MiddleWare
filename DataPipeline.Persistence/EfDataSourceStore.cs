@@ -10,7 +10,7 @@ public sealed class EfDataSourceStore : IDataSourceStore
     public EfDataSourceStore(MetadataDbContext db) => _db = db;
 
     public Task<DataSource?> GetByIdAsync(Guid id, CancellationToken ct) =>
-        _db.Origenes.FirstOrDefaultAsync(d => d.Id == id, ct);
+        _db.Origenes.AsNoTracking().FirstOrDefaultAsync(d => d.Id == id, ct);
 
     public async Task<IReadOnlyList<DataSource>> GetAllAsync(CancellationToken ct) =>
         await _db.Origenes.AsNoTracking().ToListAsync(ct);
