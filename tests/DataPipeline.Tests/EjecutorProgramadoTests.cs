@@ -47,7 +47,8 @@ public class EjecutorProgramadoTests
             new[] { new Record { Values = new Dictionary<string, object?> { ["id"] = 1 } } }, 10);
         var runner = new PipelineRunner(new FakeSourceFactory(source), new TransformFactory(), new SqliteDataStore(NuevaData()));
         var enc = new EncryptionService(Convert.ToBase64String(new byte[32]));
-        var ejecutor = new EjecutorProgramado(store, hist, runner, enc);
+        var hydrator = new PipelineHydrator(new FakeDataSourceStore(), enc);
+        var ejecutor = new EjecutorProgramado(store, hist, runner, enc, hydrator);
 
         var n = await ejecutor.ProcesarVencidosAsync(ahora, CancellationToken.None);
 

@@ -15,14 +15,16 @@ public sealed class RunsController : ControllerBase
     private readonly IHistorialCorridas _historial;
     private readonly PipelineRunner _runner;
     private readonly IEncryptionService _encryption;
+    private readonly PipelineHydrator _hydrator;
 
     public RunsController(IPipelineStore store, IHistorialCorridas historial,
-        PipelineRunner runner, IEncryptionService encryption)
+        PipelineRunner runner, IEncryptionService encryption, PipelineHydrator hydrator)
     {
         _store = store;
         _historial = historial;
         _runner = runner;
         _encryption = encryption;
+        _hydrator = hydrator;
     }
 
     [HttpPost("run/{id:guid}")]
@@ -31,6 +33,7 @@ public sealed class RunsController : ControllerBase
         var def = await _store.GetByIdAsync(id, ct);
         if (def is null) return NotFound($"Pipeline {id} no encontrado.");
 
+        await _hydrator.HydrateAsync(def, ct);
         var runId = await _historial.IniciarAsync(def.Id, ct);
         var result = await _runner.RunAsync(def, new Dictionary<string, string>(), _encryption, ct);
         await _historial.CompletarAsync(runId, result.Success, result.RowsRead, result.RowsWritten, result.Error, ct);

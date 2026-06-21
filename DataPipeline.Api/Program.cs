@@ -23,6 +23,7 @@ builder.Services.AddScoped<ISourceFactory, SourceFactory>();
 builder.Services.AddScoped<ITransformFactory, TransformFactory>();
 builder.Services.AddScoped<IDataStore>(_ => new SqliteDataStore(dataCs));
 builder.Services.AddScoped<PipelineRunner>();
+builder.Services.AddScoped<PipelineHydrator>();
 builder.Services.AddScoped<EjecutorProgramado>();
 builder.Services.AddSingleton<IEncryptionService>(sp =>
     new EncryptionService(sp.GetRequiredService<IConfiguration>()["Encryption:Key"]

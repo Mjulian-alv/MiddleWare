@@ -10,14 +10,16 @@ public sealed class EjecutorProgramado
     private readonly IHistorialCorridas _historial;
     private readonly PipelineRunner _runner;
     private readonly IEncryptionService _encryption;
+    private readonly PipelineHydrator _hydrator;
 
     public EjecutorProgramado(IPipelineStore store, IHistorialCorridas historial,
-        PipelineRunner runner, IEncryptionService encryption)
+        PipelineRunner runner, IEncryptionService encryption, PipelineHydrator hydrator)
     {
         _store = store;
         _historial = historial;
         _runner = runner;
         _encryption = encryption;
+        _hydrator = hydrator;
     }
 
     public async Task<int> ProcesarVencidosAsync(DateTime ahora, CancellationToken ct)
@@ -30,6 +32,7 @@ public sealed class EjecutorProgramado
             var runId = await _historial.IniciarAsync(def.Id, ct);
             try
             {
+                await _hydrator.HydrateAsync(def, ct);
                 var result = await _runner.RunAsync(def, new Dictionary<string, string>(), _encryption, ct);
                 await _historial.CompletarAsync(runId, result.Success, result.RowsRead, result.RowsWritten, result.Error, ct);
                 procesados++;
