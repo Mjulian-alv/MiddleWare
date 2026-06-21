@@ -1,0 +1,106 @@
+@page "/login"
+@layout DataPipeline.Admin.Components.Layout.EmptyLayout
+@inject AdminAuthService AuthService
+@inject AdminSessionState Session
+@inject NavigationManager Nav
+
+<PageTitle>Ingresar — Admin</PageTitle>
+
+<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:1rem;background:#f6f7fb;">
+    <div class="p-4" style="width:100%;max-width:440px;background:#fff;border-radius:12px;box-shadow:0 12px 48px rgba(30,27,75,.12);">
+        <div style="text-align:center;margin-bottom:1.5rem;">
+            <h4 style="margin:0;">DataPipeline</h4>
+            <p style="margin:.2rem 0 0;color:#888;">Panel de Administracion</p>
+        </div>
+
+        @if (_modoConfiguracion)
+        {
+            <p style="text-align:center;color:#888;" class="mb-3">
+                Primera vez: defini la contrasena del administrador. Podes dejar la sugerida o cambiarla.
+            </p>
+        }
+
+        @if (_error is not null)
+        {
+            <div class="alert alert-danger" role="alert">@_error</div>
+        }
+
+        <div class="mb-3">
+            <SfTextBox Placeholder="Usuario" FloatLabelType="FloatLabelType.Always"
+                       Value="@AdminAuthService.UsuarioAdmin" Enabled="false" />
+        </div>
+
+        <div class="mb-3" @onkeydown="OnKeyDown">
+            <SfTextBox Placeholder="@(_modoConfiguracion ? "Nueva contrasena" : "Contrasena")"
+                       FloatLabelType="FloatLabelType.Always"
+                       Type="InputType.Password"
+                       @bind-Value="_password" Enabled="@(!_cargando)" />
+        </div>
+
+        <SfButton CssClass="e-primary" style="width:100%;" Disabled="_cargando" OnClick="Confirmar">
+            @(_modoConfiguracion ? "Guardar y entrar" : "Ingresar")
+        </SfButton>
+    </div>
+</div>
+
+@code {
+    private string _password = string.Empty;
+    private bool _cargando;
+    private bool _modoConfiguracion;
+    private string? _error;
+
+    protected override void OnInitialized()
+    {
+        if (Session.IsAuthenticated)
+        {
+            Nav.NavigateTo("/");
+            return;
+        }
+
+        _modoConfiguracion = !AuthService.EstaConfigurada;
+        if (_modoConfiguracion)
+            _password = AdminAuthService.PasswordPorDefecto;
+    }
+
+    private void Confirmar()
+    {
+        _error = null;
+        _cargando = true;
+        try
+        {
+            if (_modoConfiguracion)
+            {
+                if (string.IsNullOrWhiteSpace(_password))
+                {
+                    _error = "Ingresa una contrasena.";
+                    return;
+                }
+
+                AuthService.EstablecerPassword(_password);
+                Session.Autenticar(AdminAuthService.UsuarioAdmin);
+                Nav.NavigateTo("/");
+            }
+            else
+            {
+                if (AuthService.Validar(AdminAuthService.UsuarioAdmin, _password))
+                {
+                    Session.Autenticar(AdminAuthService.UsuarioAdmin);
+                    Nav.NavigateTo("/");
+                }
+                else
+                {
+                    _error = "Contrasena incorrecta.";
+                }
+            }
+        }
+        finally
+        {
+            _cargando = false;
+        }
+    }
+
+    private void OnKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") Confirmar();
+    }
+}
