@@ -40,7 +40,7 @@ public class PipelineJsonLoaderTests
         Assert.Single(def.Pasos);
         Assert.Equal(TipoPaso.Origen, def.Pasos[0].Tipo);
         Assert.Equal("SqlServerSource", def.Pasos[0].Conector);
-        Assert.Equal("SELECT 1 AS n", def.Pasos[0].Configuracion["sql"]);
+        Assert.Equal("SELECT 1 AS n", def.Pasos[0].Configuracion["sql"].GetString());
     }
 
     [Fact]
