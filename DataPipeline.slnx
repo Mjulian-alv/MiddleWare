@@ -1,9 +1,11 @@
 <Solution>
   <Folder Name="/tests/">
+    <Project Path="tests/DataPipeline.Persistence.Tests/DataPipeline.Persistence.Tests.csproj" />
     <Project Path="tests/DataPipeline.Tests/DataPipeline.Tests.csproj" />
   </Folder>
   <Project Path="DataPipeline.Cli/DataPipeline.Cli.csproj" />
   <Project Path="DataPipeline.Connectors/DataPipeline.Connectors.csproj" />
   <Project Path="DataPipeline.Core/DataPipeline.Core.csproj" />
   <Project Path="DataPipeline.Engine/DataPipeline.Engine.csproj" />
+  <Project Path="DataPipeline.Persistence/DataPipeline.Persistence.csproj" />
 </Solution>
