@@ -4,6 +4,7 @@
     <Project Path="tests/DataPipeline.Persistence.Tests/DataPipeline.Persistence.Tests.csproj" />
     <Project Path="tests/DataPipeline.Tests/DataPipeline.Tests.csproj" />
   </Folder>
+  <Project Path="DataPipeline.Admin/DataPipeline.Admin.csproj" />
   <Project Path="DataPipeline.Api/DataPipeline.Api.csproj" />
   <Project Path="DataPipeline.Cli/DataPipeline.Cli.csproj" />
   <Project Path="DataPipeline.Connectors/DataPipeline.Connectors.csproj" />
