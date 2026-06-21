@@ -53,6 +53,7 @@ IHttpClientBuilder ApiClient<T>() where T : class =>
 
 ApiClient<PipelinesAdminService>();
 ApiClient<RunsAdminService>();
+ApiClient<DataSourcesAdminService>();
 
 var app = builder.Build();
 
