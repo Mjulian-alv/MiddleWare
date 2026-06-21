@@ -17,6 +17,7 @@ var dataCs = builder.Configuration.GetConnectionString("Data") ?? "Data Source=d
 builder.Services.AddDbContext<MetadataDbContext>(o => o.UseSqlite(metaCs));
 builder.Services.AddScoped<IPipelineStore, EfPipelineStore>();
 builder.Services.AddScoped<IHistorialCorridas, EfHistorialCorridas>();
+builder.Services.AddScoped<IDataSourceStore, EfDataSourceStore>();
 builder.Services.AddScoped<ISourceFactory, SourceFactory>();
 builder.Services.AddScoped<ITransformFactory, TransformFactory>();
 builder.Services.AddScoped<IDataStore>(_ => new SqliteDataStore(dataCs));
