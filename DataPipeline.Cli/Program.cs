@@ -18,7 +18,7 @@ var def = PipelineJsonLoader.Load(await File.ReadAllTextAsync(jsonPath));
 
 var store = new SqliteDataStore($"Data Source={dbPath}");
 var factory = new SourceFactory();
-var runner = new PipelineRunner(factory, store);
+var runner = new PipelineRunner(factory, new TransformFactory(), store);
 
 // Si no se pasa clave, se usa una dummy válida (32 bytes) porque el ejemplo no cifra la conexión.
 IEncryptionService enc = new EncryptionService(claveBase64 ?? Convert.ToBase64String(new byte[32]));

@@ -1,20 +1,23 @@
 using System.Diagnostics;
 using DataPipeline.Core.Abstractions;
 using DataPipeline.Core.Pipelines;
+using DataPipeline.Core.Records;
 using DataPipeline.Core.Runtime;
 using DataPipeline.Core.Security;
 
 namespace DataPipeline.Engine;
 
-/// <summary>Arma y corre la tubería Source → IDataStore por lotes (Fase 1: sin transforms).</summary>
+/// <summary>Arma y corre la tubería Source -> Transform(s) -> IDataStore por lotes.</summary>
 public sealed class PipelineRunner
 {
     private readonly ISourceFactory _sourceFactory;
+    private readonly ITransformFactory _transformFactory;
     private readonly IDataStore _dataStore;
 
-    public PipelineRunner(ISourceFactory sourceFactory, IDataStore dataStore)
+    public PipelineRunner(ISourceFactory sourceFactory, ITransformFactory transformFactory, IDataStore dataStore)
     {
         _sourceFactory = sourceFactory;
+        _transformFactory = transformFactory;
         _dataStore = dataStore;
     }
 
@@ -30,13 +33,15 @@ public sealed class PipelineRunner
 
         try
         {
-            if (def.Pasos.Any(s => s.Tipo == TipoPaso.Transformacion))
-                throw new NotSupportedException("Las transformaciones (Transform) llegan en Fase 2.");
-
             var pasoSource = def.Pasos.SingleOrDefault(s => s.Tipo == TipoPaso.Origen)
                 ?? throw new InvalidOperationException("El pipeline necesita exactamente un Origen.");
 
             var source = _sourceFactory.Create(pasoSource);
+            var transforms = def.Pasos
+                .Where(s => s.Tipo == TipoPaso.Transformacion)
+                .Select(_transformFactory.Create)
+                .ToList();
+
             var ctx = new RunContext
             {
                 PipelineId = def.Id,
@@ -46,10 +51,23 @@ public sealed class PipelineRunner
                 BatchSize = def.FilasPorLote
             };
 
-            var tablaLista = false;
-            await foreach (var lote in source.ReadAsync(ctx, ct).WithCancellation(ct))
+            // Cuenta filas leidas del origen ANTES de los transforms (filter/etc. pueden reducirlas).
+            async IAsyncEnumerable<RecordBatch> ContarLeidas(IAsyncEnumerable<RecordBatch> src)
             {
-                leidas += lote.Rows.Count;
+                await foreach (var b in src.WithCancellation(ct))
+                {
+                    leidas += b.Rows.Count;
+                    yield return b;
+                }
+            }
+
+            IAsyncEnumerable<RecordBatch> stream = ContarLeidas(source.ReadAsync(ctx, ct));
+            foreach (var t in transforms)
+                stream = t.TransformAsync(stream, ctx, ct);
+
+            var tablaLista = false;
+            await foreach (var lote in stream.WithCancellation(ct))
+            {
                 if (lote.Rows.Count == 0) continue;
 
                 if (!tablaLista)

@@ -1,3 +1,4 @@
+using DataPipeline.Connectors.Factories;
 using DataPipeline.Connectors.Security;
 using DataPipeline.Connectors.Stores;
 using DataPipeline.Core.Pipelines;
@@ -40,7 +41,7 @@ public class PipelineRunnerTests
             new[] { "id", "nombre" },
             new[] { Fila(1, "a"), Fila(2, "b"), Fila(3, "c") },
             porLote: 2);
-        var runner = new PipelineRunner(new FakeSourceFactory(source), store);
+        var runner = new PipelineRunner(new FakeSourceFactory(source), new TransformFactory(), store);
 
         var result = await runner.RunAsync(DefMinima(), new Dictionary<string, string>(), EncDummy());
 
@@ -57,13 +58,13 @@ public class PipelineRunnerTests
     {
         var store = new SqliteDataStore(NuevaDb());
         var def = DefMinima();
-        def.Pasos.Add(new StepDefinition { Nombre = "t", Tipo = TipoPaso.Transformacion, Conector = "X" });
+        def.Pasos.Clear(); // sin Origen -> InvalidOperationException, capturada
         var source = new FakeSource(new[] { "id" }, Array.Empty<Record>(), 5);
-        var runner = new PipelineRunner(new FakeSourceFactory(source), store);
+        var runner = new PipelineRunner(new FakeSourceFactory(source), new TransformFactory(), store);
 
         var result = await runner.RunAsync(def, new Dictionary<string, string>(), EncDummy());
 
         Assert.False(result.Success);
-        Assert.Contains("Transform", result.Error);
+        Assert.Contains("Origen", result.Error);
     }
 }
