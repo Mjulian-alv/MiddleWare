@@ -30,6 +30,7 @@ builder.Services.AddAuthentication(BasicAuthHandler.Scheme)
     .AddScheme<AuthenticationSchemeOptions, BasicAuthHandler>(BasicAuthHandler.Scheme, null);
 builder.Services.AddAuthorization();
 builder.Services.AddControllers();
+builder.Services.AddHostedService<DataPipeline.Api.Hosting.PipelineSchedulerHostedService>();
 
 var app = builder.Build();
 
