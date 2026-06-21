@@ -1,4 +1,5 @@
 using System.Text.Json;
+using DataPipeline.Core.DataSources;
 using DataPipeline.Core.Pipelines;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
@@ -13,6 +14,7 @@ public sealed class MetadataDbContext : DbContext
 
     public DbSet<PipelineDefinition> Pipelines => Set<PipelineDefinition>();
     public DbSet<PipelineRun> Corridas => Set<PipelineRun>();
+    public DbSet<DataSource> Origenes => Set<DataSource>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -48,5 +50,10 @@ public sealed class MetadataDbContext : DbContext
         corrida.HasKey(c => c.Id);
         corrida.HasIndex(c => c.Inicio);
         corrida.Property(c => c.Estado).HasConversion<string>();
+
+        var origen = b.Entity<DataSource>();
+        origen.HasKey(d => d.Id);
+        origen.HasIndex(d => d.Nombre).IsUnique();
+        origen.Property(d => d.Tipo).HasConversion<string>();
     }
 }
