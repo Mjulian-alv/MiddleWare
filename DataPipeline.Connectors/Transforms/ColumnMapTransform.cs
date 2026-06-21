@@ -3,19 +3,20 @@ using System.Runtime.CompilerServices;
 using DataPipeline.Core.Abstractions;
 using DataPipeline.Core.Records;
 using DataPipeline.Core.Runtime;
+using NCalc;
 
 namespace DataPipeline.Connectors.Transforms;
 
 /// <summary>
 /// Transform declarativo. Orden de operaciones por fila: rename -> cast -> computed -> filter.
-/// (computed/filter se completan en la tarea siguiente con NCalc.)
+/// computed/filter se evaluan con NCalc; los nombres de columna son las variables.
 /// </summary>
 public sealed class ColumnMapTransform : ITransform
 {
     private readonly IReadOnlyDictionary<string, string> _rename;
     private readonly IReadOnlyDictionary<string, string> _cast;
-    private readonly IReadOnlyDictionary<string, string> _computed;
-    private readonly string? _filter;
+    private readonly IReadOnlyList<(string Columna, Expression Expr)> _computed;
+    private readonly Expression? _filter;
 
     public ColumnMapTransform(
         IReadOnlyDictionary<string, string> rename,
@@ -25,8 +26,16 @@ public sealed class ColumnMapTransform : ITransform
     {
         _rename = rename;
         _cast = cast;
-        _computed = computed;
-        _filter = filter;
+        _computed = computed.Select(kv => (kv.Key, Compilar(kv.Value, $"computed '{kv.Key}'"))).ToList();
+        _filter = string.IsNullOrWhiteSpace(filter) ? null : Compilar(filter, "filter");
+    }
+
+    private static Expression Compilar(string expr, string contexto)
+    {
+        var e = new Expression(expr);
+        if (e.HasErrors())
+            throw new ArgumentException($"Expresión {contexto} inválida: {e.Error}", nameof(expr));
+        return e;
     }
 
     public async IAsyncEnumerable<RecordBatch> TransformAsync(
@@ -39,13 +48,14 @@ public sealed class ColumnMapTransform : ITransform
             {
                 var v = AplicarRename(fila.Values);
                 AplicarCast(v);
-                // computed/filter: Task 3
+                AplicarComputed(v);
+                if (_filter is not null && !EsVerdadero(_filter, v)) continue;
                 salida.Add(new Record { Values = v });
             }
 
             var columnas = salida.Count > 0
                 ? salida[0].Values.Keys.ToArray()
-                : RenombrarColumnas(lote.Columns);
+                : ColumnasEsperadas(lote.Columns);
 
             yield return new RecordBatch { Columns = columnas, Rows = salida };
         }
@@ -59,8 +69,11 @@ public sealed class ColumnMapTransform : ITransform
         return dst;
     }
 
-    private string[] RenombrarColumnas(IReadOnlyList<string> cols) =>
-        cols.Select(c => _rename.TryGetValue(c, out var n) ? n : c).ToArray();
+    private string[] ColumnasEsperadas(IReadOnlyList<string> cols)
+    {
+        var renombradas = cols.Select(c => _rename.TryGetValue(c, out var n) ? n : c);
+        return renombradas.Concat(_computed.Select(c => c.Columna)).Distinct().ToArray();
+    }
 
     private void AplicarCast(Dictionary<string, object?> fila)
     {
@@ -69,6 +82,25 @@ public sealed class ColumnMapTransform : ITransform
             if (!fila.TryGetValue(col, out var val) || val is null) continue;
             fila[col] = Convertir(val, tipo);
         }
+    }
+
+    private void AplicarComputed(Dictionary<string, object?> fila)
+    {
+        foreach (var (columna, expr) in _computed)
+            fila[columna] = Evaluar(expr, fila);
+    }
+
+    private static object? Evaluar(Expression expr, Dictionary<string, object?> fila)
+    {
+        expr.Parameters.Clear();
+        foreach (var (k, val) in fila) expr.Parameters[k] = val;
+        return expr.Evaluate();
+    }
+
+    private static bool EsVerdadero(Expression expr, Dictionary<string, object?> fila)
+    {
+        var r = Evaluar(expr, fila);
+        return r is bool b && b;
     }
 
     private static object? Convertir(object val, string tipo) => tipo.ToLowerInvariant() switch

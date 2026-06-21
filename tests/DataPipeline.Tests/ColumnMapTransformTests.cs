@@ -69,4 +69,46 @@ public class ColumnMapTransformTests
 
         Assert.Equal(10.5m, filas[0].Values["importe"]);
     }
+
+    [Fact]
+    public async Task Computed_agrega_columna_calculada()
+    {
+        var t = new ColumnMapTransform(
+            rename: new Dictionary<string, string>(),
+            cast: new Dictionary<string, string>(),
+            computed: new Dictionary<string, string> { ["neto"] = "monto - bonif" },
+            filter: null);
+
+        var filas = await Drenar(t.TransformAsync(
+            UnLote(Fila(("monto", 100), ("bonif", 30))), Ctx(), CancellationToken.None));
+
+        Assert.Equal(70, Convert.ToInt32(filas[0].Values["neto"]));
+    }
+
+    [Fact]
+    public async Task Filter_descarta_filas_que_no_cumplen()
+    {
+        var t = new ColumnMapTransform(
+            rename: new Dictionary<string, string>(),
+            cast: new Dictionary<string, string>(),
+            computed: new Dictionary<string, string>(),
+            filter: "importe > 0");
+
+        var filas = await Drenar(t.TransformAsync(
+            UnLote(Fila(("importe", 5)), Fila(("importe", -1)), Fila(("importe", 10))),
+            Ctx(), CancellationToken.None));
+
+        Assert.Equal(2, filas.Count);
+        Assert.All(filas, f => Assert.True(Convert.ToInt32(f.Values["importe"]) > 0));
+    }
+
+    [Fact]
+    public void Filtro_con_sintaxis_invalida_lanza_al_construir()
+    {
+        Assert.Throws<ArgumentException>(() => new ColumnMapTransform(
+            rename: new Dictionary<string, string>(),
+            cast: new Dictionary<string, string>(),
+            computed: new Dictionary<string, string>(),
+            filter: "importe >"));
+    }
 }
