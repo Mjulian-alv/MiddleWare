@@ -1,0 +1,240 @@
+@page "/datasources"
+@inject DataSourcesAdminService Origenes
+
+<PageTitle>Origenes de datos — Admin</PageTitle>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="mb-0">Origenes de datos</h1>
+    <SfButton CssClass="e-primary" OnClick="NuevoOrigen">Nuevo origen</SfButton>
+</div>
+
+@if (_feedback is not null)
+{
+    <div class="alert @(_feedbackOk ? "alert-success" : "alert-danger")" role="alert" aria-live="polite">@_feedback</div>
+}
+
+<SfGrid DataSource="_items" AllowPaging="true" AllowSorting="true">
+    <GridPageSettings PageSize="15"></GridPageSettings>
+    <GridColumns>
+        <GridColumn Field="@nameof(DataSourceVista.Nombre)" HeaderText="Nombre"></GridColumn>
+        <GridColumn HeaderText="Tipo" Width="120">
+            <Template Context="ctx">@TipoTexto(((DataSourceVista)ctx).Tipo)</Template>
+        </GridColumn>
+        <GridColumn Field="@nameof(DataSourceVista.Activo)" HeaderText="Activo" Width="90"></GridColumn>
+        <GridColumn Field="@nameof(DataSourceVista.CreatedAt)" HeaderText="Creado" Type="ColumnType.DateTime" Format="g" Width="160"></GridColumn>
+        <GridColumn Field="@nameof(DataSourceVista.UpdatedAt)" HeaderText="Modificado" Type="ColumnType.DateTime" Format="g" Width="160"></GridColumn>
+        <GridColumn HeaderText="Acciones" Width="260">
+            <Template Context="ctx">
+                @{ var d = (DataSourceVista)ctx; }
+                <SfButton CssClass="e-small" Disabled="_ocupado" OnClick="@(() => Editar(d.Id))">Editar</SfButton>
+                <SfButton CssClass="e-small" Disabled="_ocupado" OnClick="@(() => Probar(d.Id))">Probar</SfButton>
+                <SfButton CssClass="e-small e-danger e-outline" Disabled="_ocupado" OnClick="@(() => PedirEliminar(d))">Eliminar</SfButton>
+            </Template>
+        </GridColumn>
+    </GridColumns>
+</SfGrid>
+
+@* ── Form de alta/edicion ────────────────────────────────────────────── *@
+<SfDialog @bind-Visible="_formAbierto" Width="500px" IsModal="true" ShowCloseIcon="true">
+    <DialogTemplates>
+        <Header>@(_form.Id == Guid.Empty ? "Nuevo origen" : "Editar origen")</Header>
+        <Content>
+            <div class="mb-3">
+                <SfTextBox Placeholder="Nombre *" FloatLabelType="FloatLabelType.Always" @bind-Value="_form.Nombre" />
+                @if (_errorNombre is not null)
+                {
+                    <small class="text-danger">@_errorNombre</small>
+                }
+            </div>
+
+            <div class="mb-3">
+                <SfDropDownList TValue="int" TItem="OpcionTipo" DataSource="_tipos" @bind-Value="_form.Tipo"
+                                Placeholder="Tipo" FloatLabelType="FloatLabelType.Always">
+                    <DropDownListFieldSettings Value="Valor" Text="Texto"></DropDownListFieldSettings>
+                </SfDropDownList>
+            </div>
+
+            <div class="d-flex justify-content-end mb-1">
+                <SfButton CssClass="e-flat e-small" OnClick="@(() => _mostrarSecretos = !_mostrarSecretos)">
+                    @(_mostrarSecretos ? "Ocultar secretos" : "Mostrar secretos")
+                </SfButton>
+            </div>
+
+            <div class="mb-2">
+                <SfTextBox Placeholder="@(_form.Id == Guid.Empty ? "Connection string *" : "Connection string")"
+                           FloatLabelType="FloatLabelType.Always"
+                           Type="@(_mostrarSecretos ? InputType.Text : InputType.Password)"
+                           @bind-Value="_form.ConnectionString" />
+            </div>
+            <div class="mb-2">
+                <SfTextBox Placeholder="Usuario" FloatLabelType="FloatLabelType.Always"
+                           Type="@(_mostrarSecretos ? InputType.Text : InputType.Password)"
+                           @bind-Value="_form.Username" />
+            </div>
+            <div class="mb-2">
+                <SfTextBox Placeholder="Contrasena" FloatLabelType="FloatLabelType.Always"
+                           Type="@(_mostrarSecretos ? InputType.Text : InputType.Password)"
+                           @bind-Value="_form.Password" />
+            </div>
+
+            @if (_form.Id != Guid.Empty)
+            {
+                <small class="text-muted d-block mb-2">Deja los secretos vacios para conservar los actuales.</small>
+            }
+
+            <div class="mb-2">
+                <SfCheckBox @bind-Checked="_form.Activo" Label="Activo"></SfCheckBox>
+            </div>
+
+            @if (_errorForm is not null)
+            {
+                <div class="alert alert-danger py-2" role="alert">@_errorForm</div>
+            }
+        </Content>
+        <FooterTemplate>
+            <SfButton CssClass="e-flat" OnClick="@(() => _formAbierto = false)" Disabled="_guardando">Cancelar</SfButton>
+            <SfButton CssClass="e-primary" OnClick="Guardar" Disabled="_guardando">
+                @(_guardando ? "Guardando..." : "Guardar")
+            </SfButton>
+        </FooterTemplate>
+    </DialogTemplates>
+</SfDialog>
+
+@* ── Confirmacion de borrado ─────────────────────────────────────────── *@
+<SfDialog @bind-Visible="_confirmAbierto" Width="380px" IsModal="true" ShowCloseIcon="true">
+    <DialogTemplates>
+        <Header>Eliminar origen</Header>
+        <Content>
+            Vas a eliminar el origen <strong>@_aEliminarNombre</strong>. Esta accion no se puede deshacer.
+        </Content>
+        <FooterTemplate>
+            <SfButton CssClass="e-flat" OnClick="@(() => _confirmAbierto = false)" Disabled="_ocupado">Cancelar</SfButton>
+            <SfButton CssClass="e-danger" OnClick="ConfirmarEliminar" Disabled="_ocupado">Eliminar</SfButton>
+        </FooterTemplate>
+    </DialogTemplates>
+</SfDialog>
+
+@code {
+    private sealed record OpcionTipo(int Valor, string Texto);
+    private readonly List<OpcionTipo> _tipos = new() { new(0, "SqlServer") };
+
+    private sealed class FormModel
+    {
+        public Guid Id { get; set; }
+        public string Nombre { get; set; } = "";
+        public int Tipo { get; set; }
+        public string? ConnectionString { get; set; }
+        public string? Username { get; set; }
+        public string? Password { get; set; }
+        public bool Activo { get; set; } = true;
+    }
+
+    private List<DataSourceVista> _items = new();
+    private bool _ocupado;
+
+    private bool _formAbierto;
+    private FormModel _form = new();
+    private bool _mostrarSecretos;
+    private bool _guardando;
+    private string? _errorNombre;
+    private string? _errorForm;
+
+    private bool _confirmAbierto;
+    private Guid _aEliminarId;
+    private string? _aEliminarNombre;
+
+    private string? _feedback;
+    private bool _feedbackOk;
+
+    private static string TipoTexto(int tipo) => tipo == 0 ? "SqlServer" : tipo.ToString();
+
+    protected override async Task OnInitializedAsync() => await Recargar();
+
+    private async Task Recargar() => _items = await Origenes.ObtenerTodosAsync();
+
+    private void NuevoOrigen()
+    {
+        _form = new FormModel();
+        _mostrarSecretos = false;
+        _errorNombre = _errorForm = null;
+        _formAbierto = true;
+    }
+
+    private async Task Editar(Guid id)
+    {
+        var d = await Origenes.ObtenerPorIdAsync(id);
+        if (d is null) { Mostrar(false, "No se encontro el origen."); return; }
+        // Secretos NO se pre-cargan (la API no los devuelve); vacio = conservar al guardar.
+        _form = new FormModel { Id = d.Id, Nombre = d.Nombre, Tipo = d.Tipo, Activo = d.Activo };
+        _mostrarSecretos = false;
+        _errorNombre = _errorForm = null;
+        _formAbierto = true;
+    }
+
+    private async Task Guardar()
+    {
+        _errorNombre = _errorForm = null;
+        if (string.IsNullOrWhiteSpace(_form.Nombre)) { _errorNombre = "El nombre es obligatorio."; return; }
+        if (_form.Id == Guid.Empty && string.IsNullOrWhiteSpace(_form.ConnectionString))
+        {
+            _errorForm = "La connection string es obligatoria para un origen nuevo.";
+            return;
+        }
+
+        _guardando = true;
+        try
+        {
+            var dto = new DataSourceUpsert(_form.Id, _form.Nombre.Trim(), _form.Tipo,
+                _form.ConnectionString, _form.Username, _form.Password, null, null, _form.Activo);
+            var ok = await Origenes.GuardarAsync(dto);
+            if (ok)
+            {
+                _formAbierto = false;
+                await Recargar();
+                Mostrar(true, "Origen guardado.");
+            }
+            else
+            {
+                _errorForm = "No se pudo guardar (revisa la API o el nombre duplicado).";
+            }
+        }
+        finally { _guardando = false; }
+    }
+
+    private async Task Probar(Guid id)
+    {
+        _ocupado = true;
+        try
+        {
+            var r = await Origenes.ProbarAsync(id);
+            Mostrar(r.Ok, r.Ok ? "Conexion exitosa." : $"Fallo la conexion: {r.Error}");
+        }
+        finally { _ocupado = false; }
+    }
+
+    private void PedirEliminar(DataSourceVista d)
+    {
+        _aEliminarId = d.Id;
+        _aEliminarNombre = d.Nombre;
+        _confirmAbierto = true;
+    }
+
+    private async Task ConfirmarEliminar()
+    {
+        _ocupado = true;
+        try
+        {
+            var ok = await Origenes.EliminarAsync(_aEliminarId);
+            _confirmAbierto = false;
+            await Recargar();
+            Mostrar(ok, ok ? "Origen eliminado." : "No se pudo eliminar.");
+        }
+        finally { _ocupado = false; }
+    }
+
+    private void Mostrar(bool ok, string mensaje)
+    {
+        _feedbackOk = ok;
+        _feedback = mensaje;
+    }
+}
