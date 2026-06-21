@@ -75,4 +75,21 @@ public class RepositoriosTests
         Assert.Equal(EstadoCorrida.Ok, recientes[0].Estado);
         Assert.Equal(8, recientes[0].FilasEscritas);
     }
+
+    [Fact]
+    public async Task Delete_borra_y_devuelve_true_o_false()
+    {
+        using var ctx = NuevoCtx();
+        var store = new EfPipelineStore(ctx);
+        var def = Def("borrar", null);
+        await store.UpsertAsync(def, CancellationToken.None);
+
+        var borrado = await store.DeleteAsync(def.Id, CancellationToken.None);
+        var leido = await store.GetByIdAsync(def.Id, CancellationToken.None);
+        var inexistente = await store.DeleteAsync(Guid.NewGuid(), CancellationToken.None);
+
+        Assert.True(borrado);
+        Assert.Null(leido);
+        Assert.False(inexistente);
+    }
 }
