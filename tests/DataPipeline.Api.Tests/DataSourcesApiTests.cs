@@ -56,4 +56,34 @@ public class DataSourcesApiTests : IClassFixture<ApiFactory>
         Assert.Equal(HttpStatusCode.NoContent, (await c.DeleteAsync($"/api/datasources/{creado.Id}")).StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, (await c.GetAsync($"/api/datasources/{creado.Id}")).StatusCode);
     }
+
+    private sealed record ProbarResp(bool Ok, string? Error);
+
+    [Fact]
+    public async Task Probar_un_origen_inalcanzable_devuelve_ok_false_sin_romper()
+    {
+        var c = _factory.CreateClient();
+        c.DefaultRequestHeaders.Authorization = ApiFactory.CredAdmin();
+
+        var body = new Upsert(Guid.Empty, $"ds_{Guid.NewGuid():N}", 0,
+            "Server=no.existe.invalid;Database=x;Connect Timeout=2;TrustServerCertificate=True;User Id=u;Password=p;",
+            null, null, null, null, true);
+        var creado = await (await c.PostAsJsonAsync("/api/datasources", body)).Content.ReadFromJsonAsync<RespId>();
+
+        var resp = await c.PostAsync($"/api/datasources/{creado!.Id}/probar", null);
+        Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
+        var r = await resp.Content.ReadFromJsonAsync<ProbarResp>();
+        Assert.NotNull(r);
+        Assert.False(r!.Ok);
+        Assert.False(string.IsNullOrEmpty(r.Error));
+    }
+
+    [Fact]
+    public async Task Probar_origen_inexistente_404()
+    {
+        var c = _factory.CreateClient();
+        c.DefaultRequestHeaders.Authorization = ApiFactory.CredAdmin();
+        var resp = await c.PostAsync($"/api/datasources/{Guid.NewGuid()}/probar", null);
+        Assert.Equal(HttpStatusCode.NotFound, resp.StatusCode);
+    }
 }

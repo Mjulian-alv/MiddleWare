@@ -13,11 +13,13 @@ public sealed class DataSourcesController : ControllerBase
 {
     private readonly IDataSourceStore _store;
     private readonly IEncryptionService _enc;
+    private readonly IConnectionTester _tester;
 
-    public DataSourcesController(IDataSourceStore store, IEncryptionService enc)
+    public DataSourcesController(IDataSourceStore store, IEncryptionService enc, IConnectionTester tester)
     {
         _store = store;
         _enc = enc;
+        _tester = tester;
     }
 
     public sealed record DataSourceVista(Guid Id, string Nombre, TipoDataSource Tipo, bool Activo,
@@ -71,5 +73,15 @@ public sealed class DataSourcesController : ControllerBase
     {
         var borrado = await _store.DeleteAsync(id, ct);
         return borrado ? NoContent() : NotFound();
+    }
+
+    [HttpPost("{id:guid}/probar")]
+    public async Task<IActionResult> Probar(Guid id, CancellationToken ct)
+    {
+        var d = await _store.GetByIdAsync(id, ct);
+        if (d is null) return NotFound();
+        var cs = string.IsNullOrEmpty(d.ConnectionString) ? "" : _enc.Decrypt(d.ConnectionString);
+        var r = await _tester.ProbarSqlServerAsync(cs, ct);
+        return Ok(new { ok = r.Ok, error = r.Error });
     }
 }
