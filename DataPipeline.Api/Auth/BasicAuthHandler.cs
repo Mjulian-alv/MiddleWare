@@ -12,6 +12,9 @@ public sealed class BasicAuthHandler : AuthenticationHandler<AuthenticationSchem
     // 'new' explicito: oculta intencionalmente la propiedad Scheme (AuthenticationScheme) de la base;
     // aca Scheme es el nombre del esquema ("Basic") que referencian controllers y Program.
     public new const string Scheme = "Basic";
+    public const string RolPull = "pull";
+    public const string RolAdmin = "admin";
+
     private readonly IConfiguration _config;
 
     public BasicAuthHandler(IOptionsMonitor<AuthenticationSchemeOptions> options, ILoggerFactory logger,
@@ -34,13 +37,15 @@ public sealed class BasicAuthHandler : AuthenticationHandler<AuthenticationSchem
             var partes = Encoding.UTF8.GetString(Convert.FromBase64String(header.Parameter)).Split(':', 2);
             if (partes.Length != 2) return Task.FromResult(AuthenticateResult.Fail("Credencial mal formada."));
 
-            var userOk = _config["PullAuth:Username"];
-            var hash = _config["PullAuth:PasswordHash"];
-            if (userOk is null || hash is null ||
-                partes[0] != userOk || !BCrypt.Net.BCrypt.Verify(partes[1], hash))
-                return Task.FromResult(AuthenticateResult.Fail("Credenciales invalidas."));
+            var rol = ResolverRol(partes[0], partes[1]);
+            if (rol is null) return Task.FromResult(AuthenticateResult.Fail("Credenciales invalidas."));
 
-            var id = new ClaimsIdentity(new[] { new Claim(ClaimTypes.Name, partes[0]) }, Scheme);
+            var claims = new[]
+            {
+                new Claim(ClaimTypes.Name, partes[0]),
+                new Claim(ClaimTypes.Role, rol)
+            };
+            var id = new ClaimsIdentity(claims, Scheme);
             var ticket = new AuthenticationTicket(new ClaimsPrincipal(id), Scheme);
             return Task.FromResult(AuthenticateResult.Success(ticket));
         }
@@ -48,5 +53,20 @@ public sealed class BasicAuthHandler : AuthenticationHandler<AuthenticationSchem
         {
             return Task.FromResult(AuthenticateResult.Fail("Error de parseo."));
         }
+    }
+
+    /// <summary>Devuelve el rol si (usuario, clave) coincide con alguna credencial configurada; null si no.</summary>
+    private string? ResolverRol(string usuario, string clave)
+    {
+        if (Coincide("PullAuth", usuario, clave)) return RolPull;
+        if (Coincide("AdminAuth", usuario, clave)) return RolAdmin;
+        return null;
+    }
+
+    private bool Coincide(string seccion, string usuario, string clave)
+    {
+        var u = _config[$"{seccion}:Username"];
+        var h = _config[$"{seccion}:PasswordHash"];
+        return u is not null && h is not null && usuario == u && BCrypt.Net.BCrypt.Verify(clave, h);
     }
 }

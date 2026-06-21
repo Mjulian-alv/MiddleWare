@@ -24,8 +24,16 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
         builder.UseSetting("PullAuth:Username", "pull");
         // BCrypt hash de "secreto123":
         builder.UseSetting("PullAuth:PasswordHash", BCrypt.Net.BCrypt.HashPassword("secreto123"));
+        builder.UseSetting("AdminAuth:Username", "admin");
+        builder.UseSetting("AdminAuth:PasswordHash", BCrypt.Net.BCrypt.HashPassword("admin123"));
         builder.UseSetting("Encryption:Key", Convert.ToBase64String(new byte[32]));
     }
+
+    public static System.Net.Http.Headers.AuthenticationHeaderValue CredPull() =>
+        new("Basic", Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes("pull:secreto123")));
+
+    public static System.Net.Http.Headers.AuthenticationHeaderValue CredAdmin() =>
+        new("Basic", Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes("admin:admin123")));
 
     public async Task SeedPipelineConDatosAsync(string nombre, string tabla)
     {
