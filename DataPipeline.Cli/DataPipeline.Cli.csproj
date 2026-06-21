@@ -4,6 +4,11 @@
     <ProjectReference Include="..\DataPipeline.Engine\DataPipeline.Engine.csproj" />
     <ProjectReference Include="..\DataPipeline.Connectors\DataPipeline.Connectors.csproj" />
     <ProjectReference Include="..\DataPipeline.Core\DataPipeline.Core.csproj" />
+    <ProjectReference Include="..\DataPipeline.Persistence\DataPipeline.Persistence.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.8" />
   </ItemGroup>
 
   <PropertyGroup>

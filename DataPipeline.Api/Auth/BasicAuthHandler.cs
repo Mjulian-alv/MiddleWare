@@ -9,7 +9,9 @@ namespace DataPipeline.Api.Auth;
 
 public sealed class BasicAuthHandler : AuthenticationHandler<AuthenticationSchemeOptions>
 {
-    public const string Scheme = "Basic";
+    // 'new' explicito: oculta intencionalmente la propiedad Scheme (AuthenticationScheme) de la base;
+    // aca Scheme es el nombre del esquema ("Basic") que referencian controllers y Program.
+    public new const string Scheme = "Basic";
     private readonly IConfiguration _config;
 
     public BasicAuthHandler(IOptionsMonitor<AuthenticationSchemeOptions> options, ILoggerFactory logger,
