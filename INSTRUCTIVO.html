@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>DataPipeline — Instructivo del proyecto</title>
+<style>
+  :root{
+    --bg:#f7f8fa; --surface:#ffffff; --ink:#1f2430; --muted:#5b6472; --line:#e6e9ef;
+    --brand:#3a5bd9; --brand-soft:#eef2ff; --code-bg:#1e2330; --code-ink:#e8edf5;
+    --ok:#1a7f4b; --ok-soft:#e6f6ec; --warn:#9a6700; --warn-soft:#fff6e0;
+    --radius:12px; --maxw:920px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  a{color:var(--brand); text-decoration:none}
+  a:hover{text-decoration:underline}
+
+  /* Layout */
+  .wrap{display:grid; grid-template-columns:270px 1fr; gap:0; max-width:1240px; margin:0 auto}
+  nav.toc{
+    position:sticky; top:0; align-self:start; height:100vh; overflow:auto;
+    padding:28px 20px; border-right:1px solid var(--line); background:var(--surface);
+  }
+  nav.toc .brand{font-weight:800; font-size:18px; letter-spacing:.2px; margin-bottom:2px}
+  nav.toc .brand small{display:block; font-weight:500; color:var(--muted); font-size:12px; margin-top:2px}
+  nav.toc ol{list-style:none; margin:18px 0 0; padding:0; counter-reset:s}
+  nav.toc li{margin:1px 0}
+  nav.toc a{
+    display:block; padding:7px 10px; border-radius:8px; color:var(--ink); font-size:14px;
+    counter-increment:s;
+  }
+  nav.toc a::before{content:counter(s) ". "; color:var(--muted)}
+  nav.toc a:hover{background:var(--brand-soft); text-decoration:none}
+
+  main{padding:0 0 80px}
+  header.hero{
+    background:linear-gradient(135deg,#3a5bd9,#5b76e6); color:#fff;
+    padding:40px 40px 34px;
+  }
+  header.hero h1{margin:0 0 6px; font-size:30px; letter-spacing:.2px}
+  header.hero p{margin:0; opacity:.92; max-width:640px}
+  .badges{margin-top:16px; display:flex; gap:8px; flex-wrap:wrap}
+  .badge{background:rgba(255,255,255,.16); border:1px solid rgba(255,255,255,.25);
+    padding:4px 10px; border-radius:999px; font-size:12.5px; font-weight:600}
+
+  .content{max-width:var(--maxw); padding:8px 40px}
+  section{padding:26px 0; border-bottom:1px solid var(--line)}
+  section:last-child{border-bottom:0}
+  h2{font-size:21px; margin:8px 0 12px; scroll-margin-top:16px; display:flex; align-items:baseline; gap:10px}
+  h2 .n{color:var(--brand); font-variant-numeric:tabular-nums; font-size:15px; font-weight:800;
+    background:var(--brand-soft); border-radius:8px; padding:2px 9px}
+  h3{font-size:16px; margin:20px 0 8px}
+  p{margin:10px 0}
+  ul,ol{margin:10px 0; padding-left:22px}
+  li{margin:5px 0}
+  strong{color:var(--ink)}
+  code{font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace; font-size:13.5px;
+    background:#eef1f6; padding:1.5px 6px; border-radius:5px; color:#2b3550}
+  pre{
+    background:var(--code-bg); color:var(--code-ink); padding:16px 18px; border-radius:var(--radius);
+    overflow:auto; font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace; font-size:13px; line-height:1.6;
+    margin:14px 0;
+  }
+  pre code{background:none; color:inherit; padding:0; font-size:inherit}
+
+  table{border-collapse:collapse; width:100%; margin:14px 0; font-size:14px; background:var(--surface);
+    border:1px solid var(--line); border-radius:var(--radius); overflow:hidden}
+  th,td{text-align:left; padding:9px 12px; border-bottom:1px solid var(--line); vertical-align:top}
+  th{background:#f1f3f8; font-weight:700; font-size:13px}
+  tr:last-child td{border-bottom:0}
+  td code{white-space:nowrap}
+
+  .note{border-left:4px solid var(--brand); background:var(--brand-soft);
+    padding:12px 16px; border-radius:0 10px 10px 0; margin:14px 0}
+  .note.ok{border-color:var(--ok); background:var(--ok-soft)}
+  .note.warn{border-color:var(--warn); background:var(--warn-soft)}
+  .note p{margin:4px 0}
+
+  .pill{display:inline-block; font-size:12px; font-weight:700; padding:2px 9px; border-radius:999px}
+  .pill.ok{background:var(--ok-soft); color:var(--ok)}
+
+  footer{max-width:var(--maxw); padding:24px 40px; color:var(--muted); font-size:13px}
+
+  @media (max-width:880px){
+    .wrap{grid-template-columns:1fr}
+    nav.toc{position:static; height:auto; border-right:0; border-bottom:1px solid var(--line)}
+    nav.toc ol{display:flex; flex-wrap:wrap; gap:4px}
+    nav.toc a{font-size:13px; padding:6px 8px}
+    header.hero,.content,footer{padding-left:22px; padding-right:22px}
+  }
+  @media print{
+    nav.toc{display:none} .wrap{display:block} header.hero{background:#3a5bd9 !important; -webkit-print-color-adjust:exact}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <nav class="toc">
+    <div class="brand">DataPipeline<small>Instructivo del proyecto</small></div>
+    <ol>
+      <li><a href="#s1">Qué es DataPipeline</a></li>
+      <li><a href="#s2">Arquitectura y proyectos</a></li>
+      <li><a href="#s3">El flujo de datos</a></li>
+      <li><a href="#s4">El proyecto CLI</a></li>
+      <li><a href="#s5">La API — endpoints</a></li>
+      <li><a href="#s6">El Admin — pantallas</a></li>
+      <li><a href="#s7">Cómo ejecutar todo</a></li>
+      <li><a href="#s8">Configuración</a></li>
+      <li><a href="#s9">Probar sin SQL Server</a></li>
+      <li><a href="#s10">Convenciones y workflow</a></li>
+      <li><a href="#s11">Estado y qué falta</a></li>
+    </ol>
+  </nav>
+
+  <main>
+    <header class="hero">
+      <h1>DataPipeline — Instructivo del proyecto</h1>
+      <p>Guía práctica de qué es el sistema, cómo está organizado, qué hace cada pieza (incluido el CLI),
+         cómo se ejecuta y cómo se prueba. Estado al 2026-06-22.</p>
+      <div class="badges">
+        <span class="badge">.NET 10</span>
+        <span class="badge">Fases 1–3 + 4A completas</span>
+        <span class="badge">58 tests verdes</span>
+        <span class="badge">Build pristine</span>
+      </div>
+    </header>
+
+    <div class="content">
+
+      <section id="s1">
+        <h2><span class="n">1</span> Qué es DataPipeline</h2>
+        <p>Es un <strong>middleware de integración de datos</strong> propio (solución .NET 10 separada e
+        independiente de <code>ConsultasGenericas</code>). Su trabajo:</p>
+        <div class="note">
+          <p><strong>Leer</strong> de un origen (hoy SQL Server) → <strong>transformar</strong> los datos
+          (renombrar / castear / calcular / filtrar columnas) → <strong>dejarlos</strong> en una
+          <strong>tabla de serving</strong> intermedia → exponerlos por una <strong>API PULL autenticada</strong>
+          para que otros sistemas los consuman.</p>
+        </div>
+        <p>Es <strong>PULL</strong>: el middleware no empuja a destino; deja los datos servidos y el consumidor
+        los retira por HTTP (<code>GET</code>) y confirma lo que tomó (<code>ack</code>). El destino final lo
+        decide el consumidor.</p>
+        <p>Todo corre por <strong>streaming y por lotes</strong> (no materializa todo en memoria) y los pipelines
+        se definen de forma <strong>declarativa</strong> (sin escribir código): origen + transformaciones +
+        tabla destino + horario.</p>
+      </section>
+
+      <section id="s2">
+        <h2><span class="n">2</span> Arquitectura: los proyectos y para qué sirve cada uno</h2>
+        <p>La solución (<code>DataPipeline.slnx</code>) tiene 7 proyectos de producción + 3 de tests:</p>
+        <pre><code>DataPipeline.Core         ← contratos y modelos puros (sin dependencias externas)
+DataPipeline.Connectors   ← implementaciones concretas (SQL Server, SQLite, transforms, cifrado)
+DataPipeline.Engine       ← el motor: arma y corre la tubería; scheduler; hidratación
+DataPipeline.Persistence  ← almacén A (EF Core/SQLite): definiciones + historial + datasources
+DataPipeline.Api          ← host web: endpoints HTTP, auth, scheduler de fondo (deployable)
+DataPipeline.Admin        ← UI de administración (Blazor Server + Syncfusion)
+DataPipeline.Cli          ← utilitario de línea de comandos (ver sección 4)
+tests/*                   ← DataPipeline.Tests, .Persistence.Tests, .Api.Tests (58 tests verdes)</code></pre>
+        <p><strong>Cómo se relacionan:</strong> <code>Core</code> define las interfaces; <code>Connectors</code>
+        y <code>Persistence</code> las implementan; <code>Engine</code> orquesta usando esas interfaces.
+        Después hay <strong>tres "caras" del mismo motor</strong>: <strong>Api</strong> (HTTP),
+        <strong>Admin</strong> (visual) y <strong>Cli</strong> (línea de comandos).</p>
+
+        <h3>Detalle por proyecto</h3>
+        <table>
+          <tr><th>Proyecto</th><th>Responsabilidad</th></tr>
+          <tr><td><strong>Core</strong></td><td>Modelos de dominio (<code>PipelineDefinition</code>, <code>StepDefinition</code>, <code>PipelineRun</code>, <code>DataSource</code>, enums) y <strong>contratos</strong> (<code>ISource</code>, <code>ITransform</code>, <code>IDataStore</code>, factories, stores, cifrado…). <strong>No referencia nada externo.</strong></td></tr>
+          <tr><td><strong>Connectors</strong></td><td><code>SqlServerSource</code> (lee de SQL Server en streaming), <code>SqliteDataStore</code> (serving con ciclo de procesado), <code>ColumnMapTransform</code> (transform con NCalc), factories, <code>EncryptionService</code> (AES), <code>ConnectionTester</code>.</td></tr>
+          <tr><td><strong>Engine</strong></td><td><code>PipelineRunner</code> (compone Source→Transform(s)→DataStore por lotes), <code>PipelineHydrator</code> (resuelve <code>dataSourceId</code>→conexión), <code>ScheduleCalculator</code>, <code>EjecutorProgramado</code> (corre los vencidos).</td></tr>
+          <tr><td><strong>Persistence</strong></td><td><code>MetadataDbContext</code> (EF Core/SQLite, "almacén A") + repos + migraciones. Guarda definiciones, historial y datasources (secretos cifrados).</td></tr>
+          <tr><td><strong>Api</strong></td><td>Host ASP.NET Core: endpoints, Basic Auth con roles <code>pull</code>/<code>admin</code>, y scheduler de fondo (cada ~60s corre los vencidos). Es el <strong>deployable</strong>.</td></tr>
+          <tr><td><strong>Admin</strong></td><td>Blazor Server + Syncfusion. UI para gestionar datasources y pipelines, dispararlos y ver el historial, <strong>sin escribir JSON</strong>. Habla con la Api por HTTP.</td></tr>
+          <tr><td><strong>Cli</strong></td><td>Utilitario de consola — ver sección 4.</td></tr>
+        </table>
+      </section>
+
+      <section id="s3">
+        <h2><span class="n">3</span> El flujo de datos (end-to-end)</h2>
+        <pre><code>[SQL Server origen]
+      │  (SqlServerSource, streaming por lotes)
+      ▼
+[Transform(s): rename / cast / computed / filter]   (ColumnMapTransform, NCalc)
+      │
+      ▼
+[Serving SQLite]  ← cada fila lleva columnas de control: _key, _creado, _procesado
+      │
+      ▼
+GET /api/data/{pipeline}   ← el consumidor retira SOLO lo no procesado
+      │
+      ▼
+POST /api/data/{pipeline}/procesar  ← el consumidor confirma (ack) las keys que tomó</code></pre>
+        <p><strong>Ciclo de procesado (Fase 4A):</strong> cada fila del serving tiene
+        <code>_key</code> (identidad, de las "columnas clave" del pipeline),
+        <code>_creado</code> (cuándo se escribió/actualizó) y
+        <code>_procesado</code> (0 hasta que el consumidor la confirma).</p>
+        <table>
+          <tr><th>Modo de escritura</th><th>Comportamiento</th></tr>
+          <tr><td><strong>Agregar</strong></td><td>Cada corrida inserta lo nuevo; al inicio de la siguiente <strong>borra las ya procesadas</strong> (para no acumular).</td></tr>
+          <tr><td><strong>Reemplazar</strong></td><td><strong>Upsert por <code>_key</code></strong>: si la key existe la actualiza (<code>_creado=now</code>, <code>_procesado</code>→0); si es nueva la inserta; las ausentes quedan.</td></tr>
+        </table>
+        <p><strong>Programación:</strong> un pipeline puede ser <code>BajoDemanda</code> (a mano) o
+        <code>Diaria</code>/<code>Semanal</code>/<code>Mensual</code> (el scheduler de la Api lo corre solo a la hora configurada).</p>
+      </section>
+
+      <section id="s4">
+        <h2><span class="n">4</span> El proyecto CLI — qué es y para qué sirve</h2>
+        <p><code>DataPipeline.Cli</code> es una <strong>aplicación de consola</strong> que maneja
+        <strong>el mismo motor</strong> que la Api (referencia Core/Connectors/Engine/Persistence), pero
+        <strong>desde la línea de comandos, sin levantar la Api ni el Admin</strong>. Es una herramienta de
+        <strong>desarrollo / operaciones / automatización</strong>.</p>
+        <div class="note">
+          <p><strong>La Api es el motor "como servicio"</strong> (HTTP + scheduler + UI detrás).
+          <strong>El CLI es el motor "como herramienta"</strong> (un comando, una corrida). Misma maquinaria,
+          distinta cara.</p>
+        </div>
+        <p><strong>Por qué existe:</strong> nació como el entregable de Fase 1 — probar que el motor funciona
+        end-to-end <em>antes</em> de que existieran la Api, el scheduler o la UI. Sigue siendo útil para
+        automatizar (scripts, tareas programadas, CI), bootstrap (cargar pipelines sin la UI), pruebas rápidas
+        y diagnóstico.</p>
+        <h3>Sus 3 modos (subcomandos)</h3>
+        <p><strong>1. Correr un pipeline ad-hoc desde un JSON</strong> (modo por defecto):</p>
+        <pre><code>dotnet run --project DataPipeline.Cli -- &lt;pipeline.json&gt; &lt;salida.sqlite&gt; [claveBase64]</code></pre>
+        <p>Carga un pipeline definido en un archivo JSON y <strong>lo corre una vez</strong>, escribiendo a una
+        SQLite. No usa la BD de metadatos ni el scheduler: la forma más directa de probar un pipeline.</p>
+        <p><strong>2. Importar una definición al almacén A</strong>:</p>
+        <pre><code>dotnet run --project DataPipeline.Cli -- import &lt;pipeline.json&gt; &lt;metadata.db&gt;</code></pre>
+        <p>Registra (upsert) un pipeline desde JSON en la BD de metadatos, calculando su próxima corrida.
+        Equivale a "crear el pipeline" pero sin la UI — útil para cargar pipelines de forma programática o
+        versionados en archivos.</p>
+        <p><strong>3. Sembrar datos de demo</strong> (agregado en Fase 4A, para probar sin SQL Server):</p>
+        <pre><code>dotnet run --project DataPipeline.Cli -- seed-demo &lt;metadata.db&gt; &lt;data.db&gt;</code></pre>
+        <p>Registra un pipeline <code>demo</code> y siembra 5 filas de ejemplo en el serving (ya con columnas de
+        control). Sirve para probar el flujo PULL (GET/ack) sin tener un SQL Server con datos.</p>
+      </section>
+
+      <section id="s5">
+        <h2><span class="n">5</span> La API — endpoints</h2>
+        <p>Base: <code>https://localhost:7221</code> (y <code>http://localhost:5127</code>).
+        <strong>Basic Auth</strong> con dos credenciales:</p>
+        <ul>
+          <li><code>pull</code> / <code>pull123</code> — rol PULL: <strong>solo lectura</strong> de datos servidos.</li>
+          <li><code>admin</code> / <code>admin123</code> — rol ADMIN: <strong>gestión</strong> (pipelines, datasources).</li>
+        </ul>
+        <div class="note warn"><p>Ambas son <strong>defaults de DEV</strong>; cambiarlas en producción (ver sección 8).</p></div>
+        <table>
+          <tr><th>Método</th><th>Ruta</th><th>Rol</th><th>Qué hace</th></tr>
+          <tr><td>GET</td><td><code>/api/data/{nombre}</code></td><td>pull</td><td>Filas del serving. Por defecto solo no procesadas (<code>?incluirProcesados=true</code> para todas).</td></tr>
+          <tr><td>POST</td><td><code>/api/data/{nombre}/procesar</code></td><td>pull</td><td><strong>Ack</strong>: marca filas como procesadas. Body <code>{ "keys": [...] }</code>.</td></tr>
+          <tr><td>GET</td><td><code>/api/pipelines</code> · <code>/{id}</code></td><td>admin</td><td>Lista / ve un pipeline.</td></tr>
+          <tr><td>POST</td><td><code>/api/pipelines</code></td><td>admin</td><td>Crea o edita (upsert) un pipeline.</td></tr>
+          <tr><td>DELETE</td><td><code>/api/pipelines/{id}</code></td><td>admin</td><td>Borra un pipeline.</td></tr>
+          <tr><td>GET</td><td><code>/api/datasources</code> · <code>/{id}</code></td><td>admin</td><td>Lista / ve un datasource (sin secretos).</td></tr>
+          <tr><td>POST</td><td><code>/api/datasources</code></td><td>admin</td><td>Crea/edita (cifra secretos; vacío = conservar).</td></tr>
+          <tr><td>DELETE</td><td><code>/api/datasources/{id}</code></td><td>admin</td><td>Borra un datasource.</td></tr>
+          <tr><td>POST</td><td><code>/api/datasources/{id}/probar</code></td><td>admin</td><td>Prueba la conexión (fallo amable).</td></tr>
+          <tr><td>POST</td><td><code>/api/run/{id}</code></td><td>auth</td><td>Corre un pipeline on-demand.</td></tr>
+          <tr><td>GET</td><td><code>/api/runs</code></td><td>auth</td><td>Historial de corridas.</td></tr>
+        </table>
+      </section>
+
+      <section id="s6">
+        <h2><span class="n">6</span> El Admin — pantallas</h2>
+        <table>
+          <tr><th>Ruta</th><th>Qué hace</th></tr>
+          <tr><td><code>/login</code></td><td>Login local del panel (usuario <code>dpAdmin</code>, password que definís en el 1er ingreso).</td></tr>
+          <tr><td><code>/</code></td><td>Inicio.</td></tr>
+          <tr><td><code>/datasources</code></td><td>CRUD de orígenes (grilla + form modal + "probar conexión").</td></tr>
+          <tr><td><code>/pipelines</code></td><td>Lista de pipelines; "Nuevo", "Editar" y "Correr ahora" por fila.</td></tr>
+          <tr><td><code>/pipelines/nuevo</code> · <code>/editar/{id}</code></td><td>Editor visual: generales + programación + origen (datasource + SQL) + transformaciones en cadena + columnas clave. Genera el JSON sin tocarlo.</td></tr>
+          <tr><td><code>/runs</code></td><td>Historial de corridas (estado, filas, mensaje).</td></tr>
+        </table>
+        <div class="note"><p>El Admin tiene <strong>dos capas de auth</strong>: (1) login local del panel
+        (<code>AdminAuthService</code>), y (2) llama a la Api con la credencial <code>admin</code>
+        (config <code>ApiAuth</code> del Admin).</p></div>
+      </section>
+
+      <section id="s7">
+        <h2><span class="n">7</span> Cómo ejecutar todo</h2>
+        <p>Requisitos: .NET 10 SDK. Desde la raíz <code>D:\Sistemas\MiddleWare</code>.</p>
+        <pre><code># Compilar y testear toda la solución
+dotnet build
+dotnet test
+
+# Correr la API (deployable). Crea metadata.db y data.db en su carpeta.
+dotnet run --project DataPipeline.Api          # https://localhost:7221
+
+# Correr el Admin (UI). Necesita la API arriba y la clave Syncfusion (sección 8).
+dotnet run --project DataPipeline.Admin
+
+# Usar el CLI (sección 4)
+dotnet run --project DataPipeline.Cli -- seed-demo DataPipeline.Api/metadata.db DataPipeline.Api/data.db
+dotnet run --project DataPipeline.Cli -- import mi-pipeline.json DataPipeline.Api/metadata.db
+dotnet run --project DataPipeline.Cli -- mi-pipeline.json salida.db</code></pre>
+      </section>
+
+      <section id="s8">
+        <h2><span class="n">8</span> Configuración</h2>
+        <h3>API — <code>DataPipeline.Api/appsettings.json</code></h3>
+        <ul>
+          <li><code>ConnectionStrings:Metadata</code> — BD de definiciones/historial/datasources (default <code>metadata.db</code>).</li>
+          <li><code>ConnectionStrings:Data</code> — BD de <strong>serving</strong> (default <code>data.db</code>). Acá aterrizan los datos.</li>
+          <li><code>Encryption:Key</code> — clave AES base64 (32 bytes) para cifrar secretos. <strong>Cambiar en producción</strong> (el default son 32 ceros).</li>
+          <li><code>PullAuth</code> / <code>AdminAuth</code> — usuario + <code>PasswordHash</code> (BCrypt). Hoy <code>pull123</code> / <code>admin123</code> (DEV).</li>
+        </ul>
+        <h3>Admin — <code>DataPipeline.Admin/appsettings.json</code></h3>
+        <ul>
+          <li><code>SyncfusionLicenseKey</code> — clave de licencia Syncfusion. <strong>No commitear</strong> (local / user-secrets / variable de entorno).</li>
+          <li><code>ApiBaseUrl</code> — URL de la API (<code>https://localhost:7221</code>).</li>
+          <li><code>ApiAuth:Username</code>/<code>Password</code> — credencial con la que el Admin llama a la API (<code>admin</code>/<code>admin123</code>).</li>
+          <li><code>ApiAcceptAnyServerCertificate</code> — <code>true</code> para aceptar el cert dev self-signed (solo dev).</li>
+        </ul>
+        <div class="note"><p>Secreto de runtime: <code>DataPipeline.Admin/admin-credentials.json</code>
+        (password local del panel hasheada) está <strong>gitignoreado</strong> — no se commitea.</p></div>
+      </section>
+
+      <section id="s9">
+        <h2><span class="n">9</span> Probar el flujo PULL sin SQL Server (demo)</h2>
+        <pre><code># 1) (arranque limpio) borrar DBs viejas para evitar drift de esquema
+rm -f DataPipeline.Api/metadata.db DataPipeline.Api/data.db
+
+# 2) sembrar el pipeline 'demo' + 5 filas en el serving
+dotnet run --project DataPipeline.Cli -- seed-demo DataPipeline.Api/metadata.db DataPipeline.Api/data.db
+
+# 3) arrancar la API
+dotnet run --project DataPipeline.Api
+
+# 4) ejercer el ciclo (otra terminal)
+curl -k -u pull:pull123 "https://localhost:7221/api/data/demo"                 # 5 filas no procesadas
+curl -k -u pull:pull123 -X POST "https://localhost:7221/api/data/demo/procesar" \
+     -H "Content-Type: application/json" -d "{\"keys\":[\"1\",\"2\"]}"          # ack de 1 y 2
+curl -k -u pull:pull123 "https://localhost:7221/api/data/demo"                 # quedan 3,4,5
+curl -k -u pull:pull123 "https://localhost:7221/api/data/demo?incluirProcesados=true"  # las 5</code></pre>
+        <p><code>_key</code> = el valor de la columna clave (en la demo, <code>id</code>), por eso se ackea con
+        <code>"1"</code>, <code>"2"</code>.</p>
+      </section>
+
+      <section id="s10">
+        <h2><span class="n">10</span> Convenciones y workflow del repo</h2>
+        <ul>
+          <li><strong>Idioma:</strong> enums/propiedades de dominio en castellano; interfaces/tipos de runtime/servicios/métodos en inglés (.NET); variables locales y comentarios en español. <strong>Sin tildes ni ñ en identificadores.</strong></li>
+          <li><strong>Streaming obligatorio:</strong> los transforms procesan lote a lote, nunca materializan todo.</li>
+          <li><strong>Core sin dependencias externas</strong> (solo BCL).</li>
+          <li><strong>Build pristine</strong> (0 warnings) — verificar con <code>dotnet build --no-incremental</code>.</li>
+          <li><strong>TDD</strong> donde es testeable (motor, persistencia, API). La UI del Admin se verifica con build + prueba manual.</li>
+          <li><strong>Git:</strong> commit directo a <code>main</code>, uno por tarea (sin remoto). <strong>No usar <code>git add -A</code></strong>; stagear rutas explícitas.</li>
+          <li><strong>Plan-driven:</strong> cada fase/rebanada pasa por brainstorming → spec → plan → ejecución (en <code>docs/superpowers/</code>); ledgers de avance en <code>.superpowers/sdd/</code>.</li>
+        </ul>
+      </section>
+
+      <section id="s11">
+        <h2><span class="n">11</span> Estado y qué falta</h2>
+        <p><span class="pill ok">Completo</span> Fase 1 (cimientos), Fase 2 (motor usable + PULL),
+        Fase 3 (UI Admin: 3A–3E), <strong>Fase 4A</strong> (serving con ciclo de procesado).
+        Build pristine, <strong>58 tests verdes</strong>.</p>
+        <p><strong>Pendiente (Fase 4):</strong> reintentos (Polly), watermark del origen, dead-letter,
+        encadenamiento (<code>RunAfter</code>), 2do source heterogéneo (MySQL/Oracle/Excel/RestApi), y
+        <code>SqlServerDataStore</code> configurable (diferido). Decisiones de diseño en
+        <code>docs/superpowers/fase4-roadmap-decisiones.md</code>. Orden sugerido: <strong>4C → 4B → 4E → 4F → 4G</strong>.</p>
+        <h3>Limitaciones actuales a tener presentes</h3>
+        <ul>
+          <li>El <strong>único origen</strong> que ejecuta es SQL Server (los demás tipos son Fase 4G).</li>
+          <li>El <strong>destino</strong> es siempre la SQLite de serving (intermedia); el destino final lo hace el consumidor.</li>
+          <li><code>ModoEscritura.Combinar</code> no se ofrece (el store lo rechaza); el upsert se logra con <code>Reemplazar</code>.</li>
+          <li>El editor no expone <code>RunAfter</code> todavía (su ejecución es Fase 4F).</li>
+        </ul>
+      </section>
+
+    </div>
+
+    <footer>
+      DataPipeline · Instructivo generado el 2026-06-22 · Documento de referencia técnica:
+      <code>ANALISIS-MIDDLEWARE.md</code> · Roadmap Fase 4: <code>docs/superpowers/fase4-roadmap-decisiones.md</code>
+    </footer>
+  </main>
+</div>
+</body>
+</html>
