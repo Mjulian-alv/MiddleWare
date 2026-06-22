@@ -39,6 +39,7 @@ public class EjecutorProgramadoTests
             Programacion = TipoProgramacion.Diaria, HoraDelDia = "08:00",
             ProximaCorrida = ahora.AddMinutes(-1),
             TablaDestino = "destino", ModoEscritura = ModoEscritura.Reemplazar, FilasPorLote = 10,
+            ColumnasClave = { "id" },
             Pasos = { new StepDefinition { Nombre = "leer", Tipo = TipoPaso.Origen, Conector = "Fake" } }
         };
         await store.UpsertAsync(def, CancellationToken.None);

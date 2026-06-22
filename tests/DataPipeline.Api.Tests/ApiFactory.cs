@@ -54,6 +54,6 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
         {
             Columns = new[] { "importe" },
             Rows = new[] { new Record { Values = new Dictionary<string, object?> { ["importe"] = 42 } } }
-        }, CancellationToken.None);
+        }, new[] { "importe" }, ModoEscritura.Reemplazar, CancellationToken.None);
     }
 }

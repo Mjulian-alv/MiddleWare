@@ -49,7 +49,7 @@ public class PipelineRunnerTests
         Assert.Equal(3, result.RowsRead);
         Assert.Equal(3, result.RowsWritten);
 
-        var pagina = await store.ReadPagedAsync("destino", 1, 10, CancellationToken.None);
+        var pagina = await store.ReadPagedAsync("destino", 1, 10, true, CancellationToken.None);
         Assert.Equal(3, pagina.Rows.Count);
     }
 

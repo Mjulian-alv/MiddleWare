@@ -36,6 +36,7 @@ public class PipelineRunnerTransformTests
             Nombre = "p",
             TablaDestino = "destino",
             ModoEscritura = ModoEscritura.Reemplazar,
+            ColumnasClave = { "importe" },
             FilasPorLote = 10,
             Pasos =
             {
@@ -54,7 +55,7 @@ public class PipelineRunnerTransformTests
         Assert.Equal(3, result.RowsRead);
         Assert.Equal(2, result.RowsWritten);
 
-        var pagina = await store.ReadPagedAsync("destino", 1, 10, CancellationToken.None);
+        var pagina = await store.ReadPagedAsync("destino", 1, 10, true, CancellationToken.None);
         Assert.Equal(2, pagina.Rows.Count);
     }
 }

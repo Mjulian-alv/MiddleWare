@@ -75,7 +75,7 @@ public sealed class PipelineRunner
                     await _dataStore.EnsureTableAsync(def.TablaDestino, lote.Columns, def.ModoEscritura, ct);
                     tablaLista = true;
                 }
-                await _dataStore.WriteBatchAsync(def.TablaDestino, lote, ct);
+                await _dataStore.WriteBatchAsync(def.TablaDestino, lote, def.ColumnasClave, def.ModoEscritura, ct);
                 escritas += lote.Rows.Count;
             }
 

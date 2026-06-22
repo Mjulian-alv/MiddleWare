@@ -28,7 +28,7 @@ public sealed class DataController : ControllerBase
 
         try
         {
-            var lote = await _data.ReadPagedAsync(def.TablaDestino, page, pageSize, ct);
+            var lote = await _data.ReadPagedAsync(def.TablaDestino, page, pageSize, false, ct);
             return Ok(new { columns = lote.Columns, rows = lote.Rows.Select(r => r.Values) });
         }
         catch (Microsoft.Data.Sqlite.SqliteException)
