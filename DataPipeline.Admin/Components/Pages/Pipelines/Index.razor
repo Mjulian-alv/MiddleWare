@@ -1,9 +1,13 @@
 @page "/pipelines"
 @inject PipelinesAdminService Pipelines
+@inject NavigationManager Nav
 
 <PageTitle>Pipelines — Admin</PageTitle>
 
-<h1>Pipelines</h1>
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="mb-0">Pipelines</h1>
+    <SfButton CssClass="e-primary" OnClick="@(() => Nav.NavigateTo("/pipelines/nuevo"))">Nuevo pipeline</SfButton>
+</div>
 
 @if (_mensaje is not null)
 {
@@ -19,9 +23,10 @@
         <GridColumn Field="@nameof(PipelineDefinition.ProximaCorrida)" HeaderText="Proxima" Type="ColumnType.DateTime" Format="g" Width="170"></GridColumn>
         <GridColumn Field="@nameof(PipelineDefinition.UltimaCorrida)" HeaderText="Ultima" Type="ColumnType.DateTime" Format="g" Width="170"></GridColumn>
         <GridColumn Field="@nameof(PipelineDefinition.TablaDestino)" HeaderText="Tabla destino"></GridColumn>
-        <GridColumn HeaderText="Acciones" Width="150">
+        <GridColumn HeaderText="Acciones" Width="220">
             <Template Context="ctx">
                 @{ var p = (PipelineDefinition)ctx; }
+                <SfButton CssClass="e-small" OnClick="@(() => Nav.NavigateTo($"/pipelines/editar/{p.Id}"))">Editar</SfButton>
                 <SfButton CssClass="e-small e-primary" Disabled="_corriendo" OnClick="@(() => Correr(p.Id))">Correr ahora</SfButton>
             </Template>
         </GridColumn>

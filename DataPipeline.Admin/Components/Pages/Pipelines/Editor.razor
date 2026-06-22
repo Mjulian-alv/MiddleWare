@@ -1,0 +1,359 @@
+@page "/pipelines/nuevo"
+@page "/pipelines/editar/{Id:guid}"
+@inject PipelinesAdminService Pipelines
+@inject DataSourcesAdminService Origenes
+@inject NavigationManager Nav
+
+<PageTitle>@(Id is null ? "Nuevo pipeline" : "Editar pipeline") — Admin</PageTitle>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="mb-0">@(Id is null ? "Nuevo pipeline" : "Editar pipeline")</h1>
+    <a class="btn btn-link" href="pipelines">Volver a la lista</a>
+</div>
+
+@if (_error is not null)
+{
+    <div class="alert alert-danger" role="alert" aria-live="polite">@_error</div>
+}
+
+@if (_cargando)
+{
+    <p>Cargando...</p>
+}
+else
+{
+    <div class="card mb-3">
+        <div class="card-header fw-semibold">Generales</div>
+        <div class="card-body">
+            <div class="mb-3">
+                <SfTextBox Placeholder="Nombre *" FloatLabelType="FloatLabelType.Always" @bind-Value="_form.Nombre" />
+            </div>
+            <div class="mb-3">
+                <SfTextBox Placeholder="Tabla destino *" FloatLabelType="FloatLabelType.Always" @bind-Value="_form.TablaDestino" />
+            </div>
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <SfDropDownList TValue="int" TItem="Opcion" DataSource="_modos" @bind-Value="_form.ModoEscritura"
+                                    Placeholder="Modo de escritura" FloatLabelType="FloatLabelType.Always">
+                        <DropDownListFieldSettings Value="Valor" Text="Texto"></DropDownListFieldSettings>
+                    </SfDropDownList>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="form-label small">Filas por lote</label>
+                    <SfNumericTextBox TValue="int" @bind-Value="_form.FilasPorLote" Min="1"></SfNumericTextBox>
+                </div>
+            </div>
+            <div class="mb-1">
+                <SfCheckBox @bind-Checked="_form.Habilitado" Label="Habilitado"></SfCheckBox>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mb-3">
+        <div class="card-header fw-semibold">Programacion</div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <SfDropDownList TValue="int" TItem="Opcion" DataSource="_programaciones" @bind-Value="_form.Programacion"
+                                    Placeholder="Programacion" FloatLabelType="FloatLabelType.Always">
+                        <DropDownListFieldSettings Value="Valor" Text="Texto"></DropDownListFieldSettings>
+                    </SfDropDownList>
+                </div>
+                @if (_form.Programacion != 0)
+                {
+                    <div class="col-md-4 mb-3">
+                        <SfTextBox Placeholder="Hora del dia (HH:mm)" FloatLabelType="FloatLabelType.Always" @bind-Value="_form.HoraDelDia" />
+                    </div>
+                }
+                @if (_form.Programacion == 2)
+                {
+                    <div class="col-md-4 mb-3">
+                        <SfDropDownList TValue="int" TItem="Opcion" DataSource="_diasSemana" @bind-Value="_form.DiaDeLaSemana"
+                                        Placeholder="Dia de la semana" FloatLabelType="FloatLabelType.Always">
+                            <DropDownListFieldSettings Value="Valor" Text="Texto"></DropDownListFieldSettings>
+                        </SfDropDownList>
+                    </div>
+                }
+                @if (_form.Programacion == 3)
+                {
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label small">Dia del mes (1-28)</label>
+                        <SfNumericTextBox TValue="int" @bind-Value="_form.DiaDelMes" Min="1" Max="28"></SfNumericTextBox>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <div class="card mb-3">
+        <div class="card-header fw-semibold">Origen</div>
+        <div class="card-body">
+            <div class="mb-3">
+                <SfDropDownList TValue="Guid?" TItem="DataSourceVista" DataSource="_datasources" @bind-Value="_form.DataSourceId"
+                                Placeholder="DataSource *" FloatLabelType="FloatLabelType.Always">
+                    <DropDownListFieldSettings Value="Id" Text="Nombre"></DropDownListFieldSettings>
+                </SfDropDownList>
+            </div>
+            <div class="mb-1">
+                <SfTextBox Placeholder="SQL *" FloatLabelType="FloatLabelType.Always" Multiline="true" @bind-Value="_form.Sql" />
+            </div>
+        </div>
+    </div>
+
+    <div class="card mb-3">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <span class="fw-semibold">Transformaciones</span>
+            <SfButton CssClass="e-small" OnClick="AgregarTransform">+ Agregar transformacion</SfButton>
+        </div>
+        <div class="card-body">
+            @if (_form.Transforms.Count == 0)
+            {
+                <div class="text-muted">Sin transformaciones. El origen se escribe tal cual en la tabla destino.</div>
+            }
+            @for (var i = 0; i < _form.Transforms.Count; i++)
+            {
+                var t = _form.Transforms[i];
+                var idx = i;
+                <div class="border rounded p-3 mb-3">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <strong>Paso @(idx + 1)</strong>
+                        <span class="d-flex gap-1">
+                            <SfButton CssClass="e-small" Disabled="@(idx == 0)" OnClick="@(() => Subir(t))">▲</SfButton>
+                            <SfButton CssClass="e-small" Disabled="@(idx == _form.Transforms.Count - 1)" OnClick="@(() => Bajar(t))">▼</SfButton>
+                            <SfButton CssClass="e-small e-danger e-outline" OnClick="@(() => QuitarTransform(t))">Quitar</SfButton>
+                        </span>
+                    </div>
+                    <div class="mb-2">
+                        <SfTextBox Placeholder="Nombre del paso" FloatLabelType="FloatLabelType.Always" @bind-Value="t.Nombre" />
+                    </div>
+                    <KeyValueEditor Items="t.Rename" Titulo="Rename (renombrar columnas)" ClaveLabel="Columna origen" ValorLabel="Nuevo nombre" />
+                    <KeyValueEditor Items="t.Cast" Titulo="Cast (convertir tipos)" ClaveLabel="Columna" ValorLabel="Tipo (int/long/decimal/double/bool/date/string)" />
+                    <KeyValueEditor Items="t.Computed" Titulo="Computed (columnas calculadas)" ClaveLabel="Nueva columna" ValorLabel="Expresion (NCalc)" />
+                    <div class="mb-1">
+                        <SfTextBox Placeholder="Filter (expresion booleana NCalc, opcional)" FloatLabelType="FloatLabelType.Always" @bind-Value="t.Filter" />
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+
+    <div class="d-flex gap-2 mb-5">
+        <SfButton CssClass="e-primary" OnClick="Guardar" Disabled="_guardando">
+            @(_guardando ? "Guardando..." : "Guardar")
+        </SfButton>
+        <a class="btn btn-light" href="pipelines">Cancelar</a>
+    </div>
+}
+
+@code {
+    [Parameter] public Guid? Id { get; set; }
+
+    private sealed record Opcion(int Valor, string Texto);
+
+    private sealed class PipelineForm
+    {
+        public Guid Id { get; set; }
+        public string Nombre { get; set; } = "";
+        public bool Habilitado { get; set; } = true;
+        public string TablaDestino { get; set; } = "";
+        public int ModoEscritura { get; set; } = 2; // Reemplazar
+        public int Programacion { get; set; }        // 0 = BajoDemanda
+        public string? HoraDelDia { get; set; } = "08:00";
+        public int DiaDeLaSemana { get; set; } = 1;
+        public int DiaDelMes { get; set; } = 1;
+        public int FilasPorLote { get; set; } = 5000;
+        public Guid? DataSourceId { get; set; }
+        public string Sql { get; set; } = "";
+        public List<TransformForm> Transforms { get; set; } = new();
+    }
+
+    private sealed class TransformForm
+    {
+        public string Nombre { get; set; } = "transform";
+        public List<KV> Rename { get; set; } = new();
+        public List<KV> Cast { get; set; } = new();
+        public List<KV> Computed { get; set; } = new();
+        public string? Filter { get; set; }
+    }
+
+    private readonly List<Opcion> _modos = new() { new(0, "Agregar"), new(2, "Reemplazar") };
+    private readonly List<Opcion> _programaciones = new()
+    {
+        new(0, "Bajo demanda"), new(1, "Diaria"), new(2, "Semanal"), new(3, "Mensual")
+    };
+    private readonly List<Opcion> _diasSemana = new()
+    {
+        new(0, "Domingo"), new(1, "Lunes"), new(2, "Martes"), new(3, "Miercoles"),
+        new(4, "Jueves"), new(5, "Viernes"), new(6, "Sabado")
+    };
+
+    private List<DataSourceVista> _datasources = new();
+    private PipelineForm _form = new();
+    private bool _cargando = true;
+    private bool _guardando;
+    private string? _error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _datasources = await Origenes.ObtenerTodosAsync();
+
+        if (Id is Guid id)
+        {
+            var def = await Pipelines.ObtenerPorIdAsync(id);
+            if (def is null) { _error = "No se encontro el pipeline."; }
+            else { Cargar(def); }
+        }
+        _cargando = false;
+    }
+
+    private void AgregarTransform() =>
+        _form.Transforms.Add(new TransformForm { Nombre = $"transform{_form.Transforms.Count + 1}" });
+
+    private void QuitarTransform(TransformForm t) => _form.Transforms.Remove(t);
+
+    private void Subir(TransformForm t)
+    {
+        var i = _form.Transforms.IndexOf(t);
+        if (i > 0) { _form.Transforms.RemoveAt(i); _form.Transforms.Insert(i - 1, t); }
+    }
+
+    private void Bajar(TransformForm t)
+    {
+        var i = _form.Transforms.IndexOf(t);
+        if (i >= 0 && i < _form.Transforms.Count - 1) { _form.Transforms.RemoveAt(i); _form.Transforms.Insert(i + 1, t); }
+    }
+
+    private async Task Guardar()
+    {
+        _error = null;
+        if (string.IsNullOrWhiteSpace(_form.Nombre)) { _error = "El nombre es obligatorio."; return; }
+        if (string.IsNullOrWhiteSpace(_form.TablaDestino)) { _error = "La tabla destino es obligatoria."; return; }
+        if (_form.DataSourceId is null || string.IsNullOrWhiteSpace(_form.Sql))
+        {
+            _error = "El origen requiere un DataSource y un SQL.";
+            return;
+        }
+
+        _guardando = true;
+        try
+        {
+            var ok = await Pipelines.GuardarAsync(ConstruirDef());
+            if (ok) Nav.NavigateTo("/pipelines");
+            else _error = "No se pudo guardar (revisa la API o el nombre duplicado).";
+        }
+        finally { _guardando = false; }
+    }
+
+    private PipelineDefinition ConstruirDef()
+    {
+        var pasos = new List<StepDefinition>
+        {
+            new()
+            {
+                Nombre = "origen",
+                Tipo = TipoPaso.Origen,
+                Conector = "SqlServerSource",
+                Configuracion = new()
+                {
+                    ["dataSourceId"] = JsonSerializer.SerializeToElement(_form.DataSourceId?.ToString() ?? ""),
+                    ["sql"] = JsonSerializer.SerializeToElement(_form.Sql)
+                }
+            }
+        };
+
+        foreach (var t in _form.Transforms)
+        {
+            var cfg = new Dictionary<string, JsonElement>();
+            var rename = AMapa(t.Rename);
+            var cast = AMapa(t.Cast);
+            var computed = AMapa(t.Computed);
+            if (rename.Count > 0) cfg["rename"] = JsonSerializer.SerializeToElement(rename);
+            if (cast.Count > 0) cfg["cast"] = JsonSerializer.SerializeToElement(cast);
+            if (computed.Count > 0) cfg["computed"] = JsonSerializer.SerializeToElement(computed);
+            if (!string.IsNullOrWhiteSpace(t.Filter)) cfg["filter"] = JsonSerializer.SerializeToElement(t.Filter);
+
+            pasos.Add(new StepDefinition
+            {
+                Nombre = string.IsNullOrWhiteSpace(t.Nombre) ? "transform" : t.Nombre.Trim(),
+                Tipo = TipoPaso.Transformacion,
+                Conector = "ColumnMapTransform",
+                Configuracion = cfg
+            });
+        }
+
+        return new PipelineDefinition
+        {
+            Id = _form.Id,
+            Nombre = _form.Nombre.Trim(),
+            Habilitado = _form.Habilitado,
+            Programacion = (TipoProgramacion)_form.Programacion,
+            HoraDelDia = _form.Programacion == 0 ? null : _form.HoraDelDia,
+            DiaDeLaSemana = _form.Programacion == 2 ? _form.DiaDeLaSemana : null,
+            DiaDelMes = _form.Programacion == 3 ? _form.DiaDelMes : null,
+            TablaDestino = _form.TablaDestino.Trim(),
+            ModoEscritura = (ModoEscritura)_form.ModoEscritura,
+            FilasPorLote = _form.FilasPorLote,
+            Pasos = pasos
+        };
+    }
+
+    private static Dictionary<string, string> AMapa(List<KV> items)
+    {
+        var d = new Dictionary<string, string>();
+        foreach (var k in items)
+            if (!string.IsNullOrWhiteSpace(k.Clave)) d[k.Clave.Trim()] = k.Valor;
+        return d;
+    }
+
+    private void Cargar(PipelineDefinition def)
+    {
+        _form.Id = def.Id;
+        _form.Nombre = def.Nombre;
+        _form.Habilitado = def.Habilitado;
+        _form.Programacion = (int)def.Programacion;
+        _form.HoraDelDia = def.HoraDelDia ?? "08:00";
+        _form.DiaDeLaSemana = def.DiaDeLaSemana ?? 1;
+        _form.DiaDelMes = def.DiaDelMes ?? 1;
+        _form.TablaDestino = def.TablaDestino;
+        _form.ModoEscritura = (int)def.ModoEscritura;
+        _form.FilasPorLote = def.FilasPorLote;
+
+        var origen = def.Pasos.FirstOrDefault(p => p.Tipo == TipoPaso.Origen);
+        if (origen is not null)
+        {
+            if (origen.Configuracion.TryGetValue("dataSourceId", out var dsEl)
+                && dsEl.ValueKind == JsonValueKind.String && Guid.TryParse(dsEl.GetString(), out var g))
+                _form.DataSourceId = g;
+            if (origen.Configuracion.TryGetValue("sql", out var sqlEl) && sqlEl.ValueKind == JsonValueKind.String)
+                _form.Sql = sqlEl.GetString() ?? "";
+        }
+
+        _form.Transforms = def.Pasos
+            .Where(p => p.Tipo == TipoPaso.Transformacion)
+            .Select(p => new TransformForm
+            {
+                Nombre = p.Nombre,
+                Rename = LeerMapa(p, "rename"),
+                Cast = LeerMapa(p, "cast"),
+                Computed = LeerMapa(p, "computed"),
+                Filter = LeerString(p, "filter")
+            })
+            .ToList();
+    }
+
+    private static List<KV> LeerMapa(StepDefinition s, string clave)
+    {
+        var l = new List<KV>();
+        if (s.Configuracion.TryGetValue(clave, out var v) && v.ValueKind == JsonValueKind.Object)
+            foreach (var p in v.EnumerateObject())
+                l.Add(new KV
+                {
+                    Clave = p.Name,
+                    Valor = p.Value.ValueKind == JsonValueKind.String ? p.Value.GetString() ?? "" : p.Value.GetRawText()
+                });
+        return l;
+    }
+
+    private static string? LeerString(StepDefinition s, string clave) =>
+        s.Configuracion.TryGetValue(clave, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() : null;
+}
