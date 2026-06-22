@@ -1,0 +1,35 @@
+@* Editor de un mapa clave/valor (rename/cast/computed). Sin JSON: filas con agregar/quitar. *@
+
+<div class="mb-3">
+    <label class="form-label fw-semibold">@Titulo</label>
+
+    @if (Items.Count == 0)
+    {
+        <div class="text-muted small mb-1">Sin entradas.</div>
+    }
+
+    @foreach (var kv in Items)
+    {
+        <div class="d-flex gap-2 mb-1 align-items-center">
+            <div style="flex:1;">
+                <SfTextBox Placeholder="@ClaveLabel" @bind-Value="kv.Clave" />
+            </div>
+            <div style="flex:1;">
+                <SfTextBox Placeholder="@ValorLabel" @bind-Value="kv.Valor" />
+            </div>
+            <SfButton CssClass="e-small e-danger e-outline" OnClick="@(() => Quitar(kv))" aria-label="Quitar">✕</SfButton>
+        </div>
+    }
+
+    <SfButton CssClass="e-small" OnClick="Agregar">+ Agregar</SfButton>
+</div>
+
+@code {
+    [Parameter] public List<KV> Items { get; set; } = new();
+    [Parameter] public string Titulo { get; set; } = "";
+    [Parameter] public string ClaveLabel { get; set; } = "Clave";
+    [Parameter] public string ValorLabel { get; set; } = "Valor";
+
+    private void Agregar() => Items.Add(new KV());
+    private void Quitar(KV kv) => Items.Remove(kv);
+}
