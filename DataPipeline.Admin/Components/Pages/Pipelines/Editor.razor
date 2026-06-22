@@ -31,6 +31,10 @@ else
             <div class="mb-3">
                 <SfTextBox Placeholder="Tabla destino *" FloatLabelType="FloatLabelType.Always" @bind-Value="_form.TablaDestino" />
             </div>
+            <div class="mb-3">
+                <SfTextBox Placeholder="Columnas clave (separadas por coma; requerido si Reemplazar)"
+                           FloatLabelType="FloatLabelType.Always" @bind-Value="_form.ColumnasClave" />
+            </div>
             <div class="row">
                 <div class="col-md-6 mb-3">
                     <SfDropDownList TValue="int" TItem="Opcion" DataSource="_modos" @bind-Value="_form.ModoEscritura"
@@ -157,6 +161,7 @@ else
         public bool Habilitado { get; set; } = true;
         public string TablaDestino { get; set; } = "";
         public int ModoEscritura { get; set; } = 2; // Reemplazar
+        public string ColumnasClave { get; set; } = ""; // nombres separados por coma
         public int Programacion { get; set; }        // 0 = BajoDemanda
         public string? HoraDelDia { get; set; } = "08:00";
         public int DiaDeLaSemana { get; set; } = 1;
@@ -233,6 +238,11 @@ else
             _error = "El origen requiere un DataSource y un SQL.";
             return;
         }
+        if (_form.ModoEscritura == 2 && string.IsNullOrWhiteSpace(_form.ColumnasClave))
+        {
+            _error = "Reemplazar requiere al menos una columna clave.";
+            return;
+        }
 
         _guardando = true;
         try
@@ -293,6 +303,9 @@ else
             TablaDestino = _form.TablaDestino.Trim(),
             ModoEscritura = (ModoEscritura)_form.ModoEscritura,
             FilasPorLote = _form.FilasPorLote,
+            ColumnasClave = _form.ColumnasClave
+                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .ToList(),
             Pasos = pasos
         };
     }
@@ -316,6 +329,7 @@ else
         _form.DiaDelMes = def.DiaDelMes ?? 1;
         _form.TablaDestino = def.TablaDestino;
         _form.ModoEscritura = (int)def.ModoEscritura;
+        _form.ColumnasClave = string.Join(", ", def.ColumnasClave);
         _form.FilasPorLote = def.FilasPorLote;
 
         var origen = def.Pasos.FirstOrDefault(p => p.Tipo == TipoPaso.Origen);
