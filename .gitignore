@@ -8,3 +8,6 @@ obj/
 
 # Harness local settings
 .claude/settings.local.json
+
+# Secreto de runtime del Admin (password local hasheada; se crea al primer login)
+admin-credentials.json
