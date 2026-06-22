@@ -1,10 +1,58 @@
 using DataPipeline.Connectors.Factories;
 using DataPipeline.Connectors.Security;
 using DataPipeline.Connectors.Stores;
+using DataPipeline.Core.Pipelines;
+using DataPipeline.Core.Records;
 using DataPipeline.Core.Security;
 using DataPipeline.Engine;
 using DataPipeline.Persistence;
 using Microsoft.EntityFrameworkCore;
+
+if (args.Length >= 1 && args[0] == "seed-demo")
+{
+    if (args.Length < 3)
+    {
+        Console.Error.WriteLine("Uso: DataPipeline.Cli seed-demo <metadata.db> <data.db>");
+        return 1;
+    }
+
+    // 1) Registrar el pipeline 'demo' en el almacen A (sin necesidad de origen real).
+    var optsMeta = new DbContextOptionsBuilder<MetadataDbContext>().UseSqlite($"Data Source={args[1]}").Options;
+    await using (var ctxMeta = new MetadataDbContext(optsMeta))
+    {
+        await ctxMeta.Database.EnsureCreatedAsync();
+        var pstore = new EfPipelineStore(ctxMeta);
+        var demo = await pstore.GetByNombreAsync("demo", CancellationToken.None) ?? new PipelineDefinition();
+        demo.Nombre = "demo";
+        demo.Habilitado = true;
+        demo.Programacion = TipoProgramacion.BajoDemanda;
+        demo.TablaDestino = "serving_demo";
+        demo.ModoEscritura = ModoEscritura.Agregar;
+        demo.ColumnasClave = new() { "id" };
+        demo.FilasPorLote = 100;
+        demo.Pasos = new() { new StepDefinition { Nombre = "leer", Tipo = TipoPaso.Origen, Conector = "SqlServerSource" } };
+        await pstore.UpsertAsync(demo, CancellationToken.None);
+    }
+
+    // 2) Sembrar filas de ejemplo en el serving (con columnas de control _key/_creado/_procesado).
+    var demoStore = new SqliteDataStore($"Data Source={args[2]}");
+    var cols = new[] { "id", "producto", "monto" };
+    await demoStore.EnsureTableAsync("serving_demo", cols, ModoEscritura.Agregar, CancellationToken.None);
+    var filas = new[]
+    {
+        new Record { Values = new Dictionary<string, object?> { ["id"] = 1, ["producto"] = "Cafe", ["monto"] = 1500 } },
+        new Record { Values = new Dictionary<string, object?> { ["id"] = 2, ["producto"] = "Te", ["monto"] = 1200 } },
+        new Record { Values = new Dictionary<string, object?> { ["id"] = 3, ["producto"] = "Mate", ["monto"] = 800 } },
+        new Record { Values = new Dictionary<string, object?> { ["id"] = 4, ["producto"] = "Azucar", ["monto"] = 600 } },
+        new Record { Values = new Dictionary<string, object?> { ["id"] = 5, ["producto"] = "Galletas", ["monto"] = 2000 } },
+    };
+    await demoStore.WriteBatchAsync("serving_demo", new RecordBatch { Columns = cols, Rows = filas },
+        new[] { "id" }, ModoEscritura.Agregar, CancellationToken.None);
+
+    Console.WriteLine($"Demo sembrada: pipeline 'demo' (tabla serving_demo) con {filas.Length} filas. " +
+        "Probar: GET /api/data/demo (auth pull).");
+    return 0;
+}
 
 if (args.Length >= 1 && args[0] == "import")
 {
