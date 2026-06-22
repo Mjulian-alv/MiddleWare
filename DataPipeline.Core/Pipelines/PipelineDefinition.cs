@@ -20,5 +20,8 @@ public sealed class PipelineDefinition
 
     public List<Guid> CorrerDespuesDe { get; set; } = new();
 
+    /// <summary>Columnas de negocio que forman la clave de fila del serving (upsert + ack).</summary>
+    public List<string> ColumnasClave { get; set; } = new();
+
     public int FilasPorLote { get; set; } = 5_000;
 }

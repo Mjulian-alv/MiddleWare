@@ -46,6 +46,15 @@ public sealed class MetadataDbContext : DbContext
             v => JsonSerializer.Deserialize<List<Guid>>(JsonSerializer.Serialize(v, jsonOpts), jsonOpts)!);
         pipeline.Property(p => p.CorrerDespuesDe).HasConversion(guidsConverter).Metadata.SetValueComparer(guidsComparer);
 
+        var clavesConverter = new ValueConverter<List<string>, string>(
+            v => JsonSerializer.Serialize(v, jsonOpts),
+            v => JsonSerializer.Deserialize<List<string>>(v, jsonOpts) ?? new());
+        var clavesComparer = new ValueComparer<List<string>>(
+            (a, c) => JsonSerializer.Serialize(a, jsonOpts) == JsonSerializer.Serialize(c, jsonOpts),
+            v => JsonSerializer.Serialize(v, jsonOpts).GetHashCode(),
+            v => JsonSerializer.Deserialize<List<string>>(JsonSerializer.Serialize(v, jsonOpts), jsonOpts)!);
+        pipeline.Property(p => p.ColumnasClave).HasConversion(clavesConverter).Metadata.SetValueComparer(clavesComparer);
+
         var corrida = b.Entity<PipelineRun>();
         corrida.HasKey(c => c.Id);
         corrida.HasIndex(c => c.Inicio);

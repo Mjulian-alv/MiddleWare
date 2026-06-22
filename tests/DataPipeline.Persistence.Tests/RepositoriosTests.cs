@@ -61,6 +61,21 @@ public class RepositoriosTests
     }
 
     [Fact]
+    public async Task Upsert_roundtrip_incluye_columnas_clave()
+    {
+        using var ctx = NuevoCtx();
+        var store = new EfPipelineStore(ctx);
+        var def = Def("conclave", null);
+        def.ColumnasClave = new() { "id_venta" };
+        await store.UpsertAsync(def, CancellationToken.None);
+
+        var leido = await store.GetByNombreAsync("conclave", CancellationToken.None);
+
+        Assert.NotNull(leido);
+        Assert.Equal(new[] { "id_venta" }, leido!.ColumnasClave.ToArray());
+    }
+
+    [Fact]
     public async Task Historial_iniciar_completar_y_recientes()
     {
         using var ctx = NuevoCtx();

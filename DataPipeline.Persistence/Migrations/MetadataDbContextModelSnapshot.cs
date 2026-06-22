@@ -69,6 +69,10 @@ namespace DataPipeline.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("ColumnasClave")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("CorrerDespuesDe")
                         .IsRequired()
                         .HasColumnType("TEXT");
