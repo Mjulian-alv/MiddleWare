@@ -19,7 +19,8 @@ public sealed class DataController : ControllerBase
     }
 
     [HttpGet("{nombre}")]
-    public async Task<IActionResult> Get(string nombre, int page = 1, int pageSize = 100, CancellationToken ct = default)
+    public async Task<IActionResult> Get(string nombre, int page = 1, int pageSize = 100,
+        bool incluirProcesados = false, CancellationToken ct = default)
     {
         if (page < 1 || pageSize < 1) return BadRequest("page y pageSize deben ser >= 1.");
 
@@ -28,12 +29,32 @@ public sealed class DataController : ControllerBase
 
         try
         {
-            var lote = await _data.ReadPagedAsync(def.TablaDestino, page, pageSize, false, ct);
+            var lote = await _data.ReadPagedAsync(def.TablaDestino, page, pageSize, incluirProcesados, ct);
             return Ok(new { columns = lote.Columns, rows = lote.Rows.Select(r => r.Values) });
         }
         catch (Microsoft.Data.Sqlite.SqliteException)
         {
             return NotFound($"La tabla destino de '{nombre}' aun no existe (el pipeline no corrio todavia).");
+        }
+    }
+
+    public sealed record ProcesarRequest(List<string> Keys);
+
+    [HttpPost("{nombre}/procesar")]
+    public async Task<IActionResult> Procesar(string nombre, [FromBody] ProcesarRequest req, CancellationToken ct)
+    {
+        var def = await _store.GetByNombreAsync(nombre, ct);
+        if (def is null) return NotFound($"Pipeline '{nombre}' no encontrado.");
+        if (req?.Keys is null || req.Keys.Count == 0) return Ok(new { marcadas = 0 });
+
+        try
+        {
+            var n = await _data.MarcarProcesadasAsync(def.TablaDestino, req.Keys, ct);
+            return Ok(new { marcadas = n });
+        }
+        catch (Microsoft.Data.Sqlite.SqliteException)
+        {
+            return NotFound($"La tabla destino de '{nombre}' aun no existe.");
         }
     }
 }
