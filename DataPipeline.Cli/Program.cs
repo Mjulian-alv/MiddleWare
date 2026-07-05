@@ -20,7 +20,7 @@ if (args.Length >= 1 && args[0] == "seed-demo")
     var optsMeta = new DbContextOptionsBuilder<MetadataDbContext>().UseSqlite($"Data Source={args[1]}").Options;
     await using (var ctxMeta = new MetadataDbContext(optsMeta))
     {
-        await ctxMeta.Database.EnsureCreatedAsync();
+        await MetadataSchemaInitializer.EnsureAsync(ctxMeta.Database.GetDbConnection(), null);
         var pstore = new EfPipelineStore(ctxMeta);
         var demo = await pstore.GetByNombreAsync("demo", CancellationToken.None) ?? new PipelineDefinition();
         demo.Nombre = "demo";
@@ -66,7 +66,7 @@ if (args.Length >= 1 && args[0] == "import")
 
     var opts = new DbContextOptionsBuilder<MetadataDbContext>().UseSqlite($"Data Source={args[2]}").Options;
     using var ctx = new MetadataDbContext(opts);
-    await ctx.Database.EnsureCreatedAsync();
+    await MetadataSchemaInitializer.EnsureAsync(ctx.Database.GetDbConnection(), null);
     var store = new EfPipelineStore(ctx);
     await store.UpsertAsync(defImport, CancellationToken.None);
 

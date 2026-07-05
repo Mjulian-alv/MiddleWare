@@ -8,6 +8,7 @@ using DataPipeline.Engine;
 using DataPipeline.Persistence;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -37,9 +38,13 @@ builder.Services.AddHostedService<DataPipeline.Api.Hosting.PipelineSchedulerHost
 
 var app = builder.Build();
 
-// Crear el esquema del almacen A al arrancar.
+// Poner al dia el esquema del almacen A al arrancar (idempotente, seguro sobre bases existentes).
 using (var scope = app.Services.CreateScope())
-    scope.ServiceProvider.GetRequiredService<MetadataDbContext>().Database.EnsureCreated();
+{
+    var db = scope.ServiceProvider.GetRequiredService<MetadataDbContext>();
+    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+    await MetadataSchemaInitializer.EnsureAsync(db.Database.GetDbConnection(), logger);
+}
 
 app.UseAuthentication();
 app.UseAuthorization();
