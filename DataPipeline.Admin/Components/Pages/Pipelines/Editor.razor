@@ -35,6 +35,14 @@ else
                 <SfTextBox Placeholder="Columnas clave (separadas por coma; requerido si Reemplazar)"
                            FloatLabelType="FloatLabelType.Always" @bind-Value="_form.ColumnasClave" />
             </div>
+            <div class="mb-3">
+                <SfTextBox Placeholder="Columna watermark (opcional — carga incremental)"
+                           FloatLabelType="FloatLabelType.Always" @bind-Value="_form.ColumnaWatermark" />
+                <div class="form-text">
+                    Si la usas, tu SQL debe filtrar con @@watermark (ej. WHERE @@watermark IS NULL OR fecha_mod &gt; @@watermark).
+                    Vaciar este campo y guardar resetea el watermark (la proxima corrida trae todo).
+                </div>
+            </div>
             <div class="row">
                 <div class="col-md-6 mb-3">
                     <SfDropDownList TValue="int" TItem="Opcion" DataSource="_modos" @bind-Value="_form.ModoEscritura"
@@ -162,6 +170,7 @@ else
         public string TablaDestino { get; set; } = "";
         public int ModoEscritura { get; set; } = 2; // Reemplazar
         public string ColumnasClave { get; set; } = ""; // nombres separados por coma
+        public string? ColumnaWatermark { get; set; } = ""; // columna del origen a trackear; vacio = no incremental
         public int Programacion { get; set; }        // 0 = BajoDemanda
         public string? HoraDelDia { get; set; } = "08:00";
         public int DiaDeLaSemana { get; set; } = 1;
@@ -306,6 +315,9 @@ else
             ColumnasClave = _form.ColumnasClave
                 .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
                 .ToList(),
+            ColumnaWatermark = string.IsNullOrWhiteSpace(_form.ColumnaWatermark)
+                ? null
+                : _form.ColumnaWatermark!.Trim(),
             Pasos = pasos
         };
     }
@@ -330,6 +342,7 @@ else
         _form.TablaDestino = def.TablaDestino;
         _form.ModoEscritura = (int)def.ModoEscritura;
         _form.ColumnasClave = string.Join(", ", def.ColumnasClave);
+        _form.ColumnaWatermark = def.ColumnaWatermark ?? "";
         _form.FilasPorLote = def.FilasPorLote;
 
         var origen = def.Pasos.FirstOrDefault(p => p.Tipo == TipoPaso.Origen);
