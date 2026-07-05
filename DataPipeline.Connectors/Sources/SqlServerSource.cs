@@ -30,6 +30,15 @@ public sealed class SqlServerSource : ISource
         foreach (var (clave, valor) in ctx.Parameters)
             cmd.Parameters.AddWithValue("@" + clave.TrimStart('@'), (object?)valor ?? DBNull.Value);
 
+        // Carga incremental: si el SQL usa @watermark pero no vino en los parametros (primera corrida /
+        // reset), declararlo como NULL para que SQL Server no exija la variable. El usuario filtra con
+        // "@watermark IS NULL OR col > @watermark", asi que NULL trae todo.
+        if (!cmd.Parameters.Contains("@watermark")
+            && _sql.Contains("@watermark", StringComparison.OrdinalIgnoreCase))
+        {
+            cmd.Parameters.AddWithValue("@watermark", DBNull.Value);
+        }
+
         await using var rd = await cmd.ExecuteReaderAsync(ct);
         var cols = Enumerable.Range(0, rd.FieldCount).Select(rd.GetName).ToArray();
 
