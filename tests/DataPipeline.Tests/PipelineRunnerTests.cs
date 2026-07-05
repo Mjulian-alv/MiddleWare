@@ -92,6 +92,51 @@ public class PipelineRunnerTests
     }
 
     [Fact]
+    public async Task Trackea_watermark_ignorando_mayusculas_de_la_columna()
+    {
+        var cs = NuevaDb();
+        var store = new SqliteDataStore(cs);
+        var filas = new[]
+        {
+            new Record { Values = new Dictionary<string, object?> { ["id"] = 1, ["fecha_mod"] = new DateTime(2026, 6, 20, 18, 0, 0) } },
+            new Record { Values = new Dictionary<string, object?> { ["id"] = 2, ["fecha_mod"] = new DateTime(2026, 6, 21, 10, 30, 0) } },
+        };
+        var source = new FakeSource(new[] { "id", "fecha_mod" }, filas, porLote: 2);
+        var runner = new PipelineRunner(new FakeSourceFactory(source), new TransformFactory(), store);
+
+        var def = DefMinima();
+        def.ColumnaWatermark = "Fecha_Mod"; // casing distinto al de la columna real ("fecha_mod")
+
+        var result = await runner.RunAsync(def, new Dictionary<string, string>(), EncDummy());
+
+        Assert.True(result.Success, result.Error);
+        Assert.Equal(new DateTime(2026, 6, 21, 10, 30, 0).ToString("O"), result.NuevoWatermark);
+    }
+
+    [Fact]
+    public async Task Watermark_con_valores_incomparables_da_error_claro()
+    {
+        var cs = NuevaDb();
+        var store = new SqliteDataStore(cs);
+        var filas = new[]
+        {
+            new Record { Values = new Dictionary<string, object?> { ["id"] = 1, ["fecha_mod"] = 123 } },
+            new Record { Values = new Dictionary<string, object?> { ["id"] = 2, ["fecha_mod"] = "no comparable" } },
+        };
+        var source = new FakeSource(new[] { "id", "fecha_mod" }, filas, porLote: 2);
+        var runner = new PipelineRunner(new FakeSourceFactory(source), new TransformFactory(), store);
+
+        var def = DefMinima();
+        def.ColumnaWatermark = "fecha_mod";
+
+        var result = await runner.RunAsync(def, new Dictionary<string, string>(), EncDummy());
+
+        Assert.False(result.Success);
+        Assert.Contains("fecha_mod", result.Error);
+        Assert.Contains("watermark", result.Error, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public async Task Inyecta_UltimoWatermark_en_los_parametros_del_origen()
     {
         var store = new SqliteDataStore(NuevaDb());

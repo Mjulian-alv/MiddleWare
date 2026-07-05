@@ -41,6 +41,7 @@ else
                 <div class="form-text">
                     Si la usas, tu SQL debe filtrar con @@watermark (ej. WHERE @@watermark IS NULL OR fecha_mod &gt; @@watermark).
                     Vaciar este campo y guardar resetea el watermark (la proxima corrida trae todo).
+                    Si la columna es de fecha, debe ser datetime/datetime2 (el valor se guarda y compara como texto ISO).
                 </div>
             </div>
             <div class="row">

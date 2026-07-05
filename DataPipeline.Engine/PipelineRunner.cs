@@ -65,6 +65,7 @@ public sealed class PipelineRunner
             };
 
             object? maxWatermark = null;
+            string? claveWatermarkReal = null;
 
             // Cuenta filas leidas y trackea el maximo de la columna watermark (antes de transforms).
             async IAsyncEnumerable<RecordBatch> ContarLeidas(IAsyncEnumerable<RecordBatch> src)
@@ -76,10 +77,39 @@ public sealed class PipelineRunner
                     {
                         foreach (var fila in b.Rows)
                         {
-                            if (fila.Values.TryGetValue(def.ColumnaWatermark, out var v) && v is not null)
+                            // Resuelve la clave real de la columna una sola vez: SQL Server es case-insensitive
+                            // para nombres de columna, pero el Dictionary del origen es ordinal/case-sensitive.
+                            // Se cachea el nombre exacto encontrado para evitar un scan por fila.
+                            if (claveWatermarkReal is null)
                             {
-                                if (maxWatermark is null || Comparer<object>.Default.Compare(v, maxWatermark) > 0)
+                                claveWatermarkReal = fila.Values.Keys.FirstOrDefault(k =>
+                                    string.Equals(k, def.ColumnaWatermark, StringComparison.OrdinalIgnoreCase));
+                            }
+
+                            if (claveWatermarkReal is not null
+                                && fila.Values.TryGetValue(claveWatermarkReal, out var v)
+                                && v is not null)
+                            {
+                                if (maxWatermark is null)
+                                {
                                     maxWatermark = v;
+                                }
+                                else
+                                {
+                                    int cmp;
+                                    try
+                                    {
+                                        cmp = Comparer<object>.Default.Compare(v, maxWatermark);
+                                    }
+                                    catch (ArgumentException ex)
+                                    {
+                                        throw new InvalidOperationException(
+                                            $"No se pudieron comparar los valores de la columna watermark '{def.ColumnaWatermark}'. Deben ser de un tipo homogeneo y comparable.",
+                                            ex);
+                                    }
+                                    if (cmp > 0)
+                                        maxWatermark = v;
+                                }
                             }
                         }
                     }
@@ -106,6 +136,11 @@ public sealed class PipelineRunner
             }
 
             cronometro.Stop();
+            // Los watermark de tipo DateTime se persisten como texto ISO-8601 round-trip ("O").
+            // En la proxima corrida ese texto se vuelve a inyectar como parametro @watermark (nvarchar);
+            // la comparacion "columna > @watermark" funciona porque SQL Server, por precedencia de tipos,
+            // convierte el string a datetime antes de comparar. Por eso la columna de watermark debe ser
+            // datetime/datetime2 (o un tipo implicitamente convertible desde ese string).
             var nuevoWatermark = maxWatermark switch
             {
                 null => null,
