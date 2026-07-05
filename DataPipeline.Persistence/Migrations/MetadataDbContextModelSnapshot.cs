@@ -69,6 +69,9 @@ namespace DataPipeline.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("ColumnaWatermark")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("ColumnasClave")
                         .IsRequired()
                         .HasColumnType("TEXT");
@@ -116,6 +119,9 @@ namespace DataPipeline.Persistence.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<DateTime?>("UltimaCorrida")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("UltimoWatermark")
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");

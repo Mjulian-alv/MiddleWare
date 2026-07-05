@@ -23,5 +23,11 @@ public sealed class PipelineDefinition
     /// <summary>Columnas de negocio que forman la clave de fila del serving (upsert + ack).</summary>
     public List<string> ColumnasClave { get; set; } = new();
 
+    /// <summary>Columna del origen cuyo maximo se trackea para carga incremental. Vacio = no incremental.</summary>
+    public string? ColumnaWatermark { get; set; }
+
+    /// <summary>Ultimo maximo visto de <see cref="ColumnaWatermark"/> (persistido tras cada corrida exitosa).</summary>
+    public string? UltimoWatermark { get; set; }
+
     public int FilasPorLote { get; set; } = 5_000;
 }
