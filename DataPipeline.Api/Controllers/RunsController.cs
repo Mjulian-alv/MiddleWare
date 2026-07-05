@@ -37,6 +37,8 @@ public sealed class RunsController : ControllerBase
         var runId = await _historial.IniciarAsync(def.Id, ct);
         var result = await _runner.RunAsync(def, new Dictionary<string, string>(), _encryption, ct);
         await _historial.CompletarAsync(runId, result.Success, result.RowsRead, result.RowsWritten, result.Error, ct);
+        if (result.Success && result.NuevoWatermark is not null)
+            await _store.ActualizarWatermarkAsync(def.Id, result.NuevoWatermark, ct);
 
         return Ok(new { result.RunId, result.Success, result.RowsRead, result.RowsWritten, result.Error });
     }
