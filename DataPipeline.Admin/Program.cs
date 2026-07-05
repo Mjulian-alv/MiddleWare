@@ -12,7 +12,7 @@ builder.Services.AddRazorComponents()
 
 // Syncfusion. La licencia se registra desde config "SyncfusionLicenseKey" (o variable de entorno);
 // NO se hardcodea en el repo. Sin clave, Syncfusion muestra un banner de trial pero funciona.
-var syncfusionKey = builder.Configuration["SyncfusionLicenseKey"];
+var syncfusionKey = builder.Configuration["SyncfusionLicenseKey"] ?? "Ngo9BigBOggjGyl/VkV+XU9AclRDX3xKf0x/TGpQb19xflBPallYVBYiSV9jS3hTcERjWH1ddXRXQ2VcU091XA==00";
 if (!string.IsNullOrWhiteSpace(syncfusionKey))
     Syncfusion.Licensing.SyncfusionLicenseProvider.RegisterLicense(syncfusionKey);
 builder.Services.AddSyncfusionBlazor();
