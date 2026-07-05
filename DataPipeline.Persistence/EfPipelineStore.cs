@@ -40,6 +40,14 @@ public sealed class EfPipelineStore : IPipelineStore
         await _db.SaveChangesAsync(ct);
     }
 
+    public async Task ActualizarWatermarkAsync(Guid id, string? watermark, CancellationToken ct)
+    {
+        var def = await _db.Pipelines.FirstOrDefaultAsync(p => p.Id == id, ct);
+        if (def is null) return;
+        def.UltimoWatermark = watermark;
+        await _db.SaveChangesAsync(ct);
+    }
+
     public async Task<bool> DeleteAsync(Guid id, CancellationToken ct)
     {
         var def = await _db.Pipelines.FirstOrDefaultAsync(p => p.Id == id, ct);

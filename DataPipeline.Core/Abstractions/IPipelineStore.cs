@@ -11,5 +11,6 @@ public interface IPipelineStore
     Task UpsertAsync(PipelineDefinition def, CancellationToken ct);
     Task<IReadOnlyList<PipelineDefinition>> ObtenerVencidosAsync(DateTime ahora, CancellationToken ct);
     Task ActualizarProgramacionAsync(Guid id, DateTime? ultima, DateTime? proxima, CancellationToken ct);
+    Task ActualizarWatermarkAsync(Guid id, string? watermark, CancellationToken ct);
     Task<bool> DeleteAsync(Guid id, CancellationToken ct);
 }

@@ -93,6 +93,21 @@ public class RepositoriosTests
     }
 
     [Fact]
+    public async Task ActualizarWatermark_persiste_el_ultimo_valor()
+    {
+        using var ctx = NuevoCtx();
+        var store = new EfPipelineStore(ctx);
+        var def = Def("ventas-inc2", null);
+        def.ColumnaWatermark = "fecha_mod";
+        await store.UpsertAsync(def, CancellationToken.None);
+
+        await store.ActualizarWatermarkAsync(def.Id, "2026-06-21T10:30:00.0000000", CancellationToken.None);
+
+        var leido = await store.GetByIdAsync(def.Id, CancellationToken.None);
+        Assert.Equal("2026-06-21T10:30:00.0000000", leido!.UltimoWatermark);
+    }
+
+    [Fact]
     public async Task Historial_iniciar_completar_y_recientes()
     {
         using var ctx = NuevoCtx();
