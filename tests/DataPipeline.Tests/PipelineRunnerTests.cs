@@ -67,4 +67,44 @@ public class PipelineRunnerTests
         Assert.False(result.Success);
         Assert.Contains("Origen", result.Error);
     }
+
+    [Fact]
+    public async Task Trackea_el_maximo_de_la_columna_watermark()
+    {
+        var cs = NuevaDb();
+        var store = new SqliteDataStore(cs);
+        var filas = new[]
+        {
+            new Record { Values = new Dictionary<string, object?> { ["id"] = 1, ["fecha_mod"] = new DateTime(2026, 6, 20, 18, 0, 0) } },
+            new Record { Values = new Dictionary<string, object?> { ["id"] = 2, ["fecha_mod"] = new DateTime(2026, 6, 21, 10, 30, 0) } },
+            new Record { Values = new Dictionary<string, object?> { ["id"] = 3, ["fecha_mod"] = (object?)null } },
+        };
+        var source = new FakeSource(new[] { "id", "fecha_mod" }, filas, porLote: 2);
+        var runner = new PipelineRunner(new FakeSourceFactory(source), new TransformFactory(), store);
+
+        var def = DefMinima();
+        def.ColumnaWatermark = "fecha_mod";
+
+        var result = await runner.RunAsync(def, new Dictionary<string, string>(), EncDummy());
+
+        Assert.True(result.Success, result.Error);
+        Assert.Equal(new DateTime(2026, 6, 21, 10, 30, 0).ToString("O"), result.NuevoWatermark);
+    }
+
+    [Fact]
+    public async Task Inyecta_UltimoWatermark_en_los_parametros_del_origen()
+    {
+        var store = new SqliteDataStore(NuevaDb());
+        var spy = new SpyParamsSource(new[] { "id", "fecha_mod" });
+        var runner = new PipelineRunner(new FakeSourceFactory(spy), new TransformFactory(), store);
+
+        var def = DefMinima();
+        def.ColumnaWatermark = "fecha_mod";
+        def.UltimoWatermark = "2026-06-20T18:00:00.0000000";
+
+        await runner.RunAsync(def, new Dictionary<string, string>(), EncDummy());
+
+        Assert.True(spy.ParametrosVistos.ContainsKey("watermark"));
+        Assert.Equal("2026-06-20T18:00:00.0000000", spy.ParametrosVistos["watermark"]);
+    }
 }

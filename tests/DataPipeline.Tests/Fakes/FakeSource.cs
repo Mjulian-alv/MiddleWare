@@ -38,3 +38,20 @@ internal sealed class FakeSourceFactory : ISourceFactory
     public FakeSourceFactory(ISource source) => _source = source;
     public ISource Create(StepDefinition step) => _source;
 }
+
+/// <summary>Source de prueba que registra los parametros recibidos (para verificar la inyeccion del watermark).</summary>
+internal sealed class SpyParamsSource : ISource
+{
+    private readonly IReadOnlyList<string> _cols;
+    public IReadOnlyDictionary<string, string> ParametrosVistos { get; private set; } =
+        new Dictionary<string, string>();
+
+    public SpyParamsSource(IReadOnlyList<string> cols) => _cols = cols;
+
+    public async IAsyncEnumerable<RecordBatch> ReadAsync(RunContext ctx, [EnumeratorCancellation] CancellationToken ct)
+    {
+        ParametrosVistos = ctx.Parameters;
+        await Task.Yield();
+        yield return new RecordBatch { Columns = _cols, Rows = Array.Empty<Record>() };
+    }
+}

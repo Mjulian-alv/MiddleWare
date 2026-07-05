@@ -7,4 +7,5 @@ public sealed record RunResult(
     long RowsRead,
     long RowsWritten,
     string? Error,
-    TimeSpan Duration);
+    TimeSpan Duration,
+    string? NuevoWatermark = null);

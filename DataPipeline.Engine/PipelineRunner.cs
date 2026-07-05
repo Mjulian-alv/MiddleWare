@@ -42,21 +42,47 @@ public sealed class PipelineRunner
                 .Select(_transformFactory.Create)
                 .ToList();
 
+            // Carga incremental: si hay watermark previo, inyectarlo como parametro del origen.
+            // El SQL del usuario lo referencia como @watermark. Solo se agrega cuando hay valor:
+            // en la primera corrida (UltimoWatermark null) SqlServerSource declara @watermark=NULL
+            // por su cuenta (ver Task 3) para que "@watermark IS NULL OR ..." traiga todo.
+            var parametrosEfectivos = parameters;
+            if (!string.IsNullOrWhiteSpace(def.ColumnaWatermark) && def.UltimoWatermark is not null)
+            {
+                parametrosEfectivos = new Dictionary<string, string>(parameters)
+                {
+                    ["watermark"] = def.UltimoWatermark
+                };
+            }
+
             var ctx = new RunContext
             {
                 PipelineId = def.Id,
                 RunId = runId,
-                Parameters = parameters,
+                Parameters = parametrosEfectivos,
                 Encryption = encryption,
                 BatchSize = def.FilasPorLote
             };
 
-            // Cuenta filas leidas del origen ANTES de los transforms (filter/etc. pueden reducirlas).
+            object? maxWatermark = null;
+
+            // Cuenta filas leidas y trackea el maximo de la columna watermark (antes de transforms).
             async IAsyncEnumerable<RecordBatch> ContarLeidas(IAsyncEnumerable<RecordBatch> src)
             {
                 await foreach (var b in src.WithCancellation(ct))
                 {
                     leidas += b.Rows.Count;
+                    if (!string.IsNullOrWhiteSpace(def.ColumnaWatermark))
+                    {
+                        foreach (var fila in b.Rows)
+                        {
+                            if (fila.Values.TryGetValue(def.ColumnaWatermark, out var v) && v is not null)
+                            {
+                                if (maxWatermark is null || Comparer<object>.Default.Compare(v, maxWatermark) > 0)
+                                    maxWatermark = v;
+                            }
+                        }
+                    }
                     yield return b;
                 }
             }
@@ -80,7 +106,13 @@ public sealed class PipelineRunner
             }
 
             cronometro.Stop();
-            return new RunResult(runId, true, leidas, escritas, null, cronometro.Elapsed);
+            var nuevoWatermark = maxWatermark switch
+            {
+                null => null,
+                DateTime dt => dt.ToString("O"),
+                _ => Convert.ToString(maxWatermark, System.Globalization.CultureInfo.InvariantCulture)
+            };
+            return new RunResult(runId, true, leidas, escritas, null, cronometro.Elapsed, nuevoWatermark);
         }
         catch (Exception ex)
         {
