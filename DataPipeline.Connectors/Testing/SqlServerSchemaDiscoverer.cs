@@ -1,0 +1,36 @@
+using System.Data;
+using DataPipeline.Core.Abstractions;
+using DataPipeline.Core.Pipelines;
+using Microsoft.Data.SqlClient;
+
+namespace DataPipeline.Connectors.Testing;
+
+/// <summary>
+/// Descubre columnas via CommandBehavior.SchemaOnly (no baja datos). Bindea @watermark=NULL si el SQL
+/// lo referencia (misma guarda que SqlServerSource). Cualquier excepcion -> Ok=false con el mensaje.
+/// </summary>
+public sealed class SqlServerSchemaDiscoverer : ISchemaDiscoverer
+{
+    public async Task<SchemaResult> DescubrirSqlServerAsync(string connectionString, string sql, CancellationToken ct)
+    {
+        try
+        {
+            await using var con = new SqlConnection(connectionString);
+            await con.OpenAsync(ct);
+            await using var cmd = new SqlCommand(sql, con) { CommandTimeout = 0 };
+            if (sql.Contains("@watermark", StringComparison.OrdinalIgnoreCase))
+                cmd.Parameters.AddWithValue("@watermark", DBNull.Value);
+
+            await using var rd = await cmd.ExecuteReaderAsync(CommandBehavior.SchemaOnly, ct);
+            var cols = new List<ColumnaOrigen>(rd.FieldCount);
+            for (int i = 0; i < rd.FieldCount; i++)
+                cols.Add(new ColumnaOrigen { Nombre = rd.GetName(i), Tipo = rd.GetDataTypeName(i) });
+
+            return new SchemaResult(true, cols, null);
+        }
+        catch (Exception ex)
+        {
+            return new SchemaResult(false, null, ex.Message);
+        }
+    }
+}
