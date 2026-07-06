@@ -54,6 +54,7 @@ public class MetadataSchemaInitializerTests
                 ProximaCorrida = DateTime.UtcNow, UltimaCorrida = DateTime.UtcNow,
                 TablaDestino = "t", ModoEscritura = ModoEscritura.Reemplazar,
                 ColumnasClave = { "id" }, CorrerDespuesDe = { Guid.NewGuid() },
+                EsquemaOrigen = { new ColumnaOrigen { Nombre = "fecha", Tipo = "datetime" } },
                 ColumnaWatermark = "fecha", UltimoWatermark = "2026-01-01T00:00:00.0000000",
                 FilasPorLote = 10,
                 Pasos = { new StepDefinition { Nombre = "o", Tipo = TipoPaso.Origen, Conector = "SqlServerSource" } }

@@ -23,6 +23,9 @@ public sealed class PipelineDefinition
     /// <summary>Columnas de negocio que forman la clave de fila del serving (upsert + ack).</summary>
     public List<string> ColumnasClave { get; set; } = new();
 
+    /// <summary>Columnas del resultado del origen, descubiertas en diseno (ayuda para watermark/clave).</summary>
+    public List<ColumnaOrigen> EsquemaOrigen { get; set; } = new();
+
     /// <summary>Columna del origen cuyo maximo se trackea para carga incremental. Vacio = no incremental.</summary>
     public string? ColumnaWatermark { get; set; }
 

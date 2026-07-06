@@ -86,6 +86,10 @@ namespace DataPipeline.Persistence.Migrations
                     b.Property<int?>("DiaDelMes")
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("EsquemaOrigen")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
                     b.Property<int>("FilasPorLote")
                         .HasColumnType("INTEGER");
 

@@ -124,6 +124,27 @@ public class RepositoriosTests
     }
 
     [Fact]
+    public async Task Pipeline_persiste_esquema_origen()
+    {
+        using var ctx = NuevoCtx();
+        var store = new EfPipelineStore(ctx);
+        var def = Def("ventas-esquema", null);
+        def.EsquemaOrigen = new()
+        {
+            new ColumnaOrigen { Nombre = "id", Tipo = "int" },
+            new ColumnaOrigen { Nombre = "fecha_mod", Tipo = "datetime" }
+        };
+        await store.UpsertAsync(def, CancellationToken.None);
+
+        var leido = await store.GetByIdAsync(def.Id, CancellationToken.None);
+
+        Assert.NotNull(leido);
+        Assert.Equal(2, leido!.EsquemaOrigen.Count);
+        Assert.Equal("fecha_mod", leido.EsquemaOrigen[1].Nombre);
+        Assert.Equal("datetime", leido.EsquemaOrigen[1].Tipo);
+    }
+
+    [Fact]
     public async Task Delete_borra_y_devuelve_true_o_false()
     {
         using var ctx = NuevoCtx();

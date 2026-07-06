@@ -46,6 +46,7 @@ public static class MetadataSchemaInitializer
             "ModoEscritura"    TEXT    NOT NULL,
             "CorrerDespuesDe"  TEXT    NOT NULL,
             "ColumnasClave"    TEXT    NOT NULL DEFAULT '[]',
+            "EsquemaOrigen"    TEXT    NOT NULL DEFAULT '[]',
             "ColumnaWatermark" TEXT    NULL,
             "UltimoWatermark"  TEXT    NULL,
             "FilasPorLote"     INTEGER NOT NULL
@@ -70,6 +71,7 @@ public static class MetadataSchemaInitializer
         // Columnas agregadas despues del esquema inicial (auto-cura de bases viejas).
         // Sobre base nueva fallan con "duplicate column" (tragado). Requeridas llevan DEFAULT.
         """ALTER TABLE "Pipelines" ADD COLUMN "ColumnasClave"    TEXT NOT NULL DEFAULT '[]'""",
+        """ALTER TABLE "Pipelines" ADD COLUMN "EsquemaOrigen"    TEXT NOT NULL DEFAULT '[]'""",
         """ALTER TABLE "Pipelines" ADD COLUMN "ColumnaWatermark" TEXT NULL""",
         """ALTER TABLE "Pipelines" ADD COLUMN "UltimoWatermark"  TEXT NULL""",
     };
