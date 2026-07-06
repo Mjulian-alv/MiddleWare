@@ -14,6 +14,9 @@ public sealed record DataSourceUpsert(Guid Id, string Nombre, int Tipo, string? 
 /// <summary>Resultado de probar la conexion.</summary>
 public sealed record ProbarResp(bool Ok, string? Error);
 
+/// <summary>Una columna del resultado del origen (nombre + tipo).</summary>
+public sealed record ColumnaOrigenDto(string Nombre, string Tipo);
+
 /// <summary>Habla con DataPipeline.Api (rol admin) para gestionar DataSources.</summary>
 public class DataSourcesAdminService
 {
@@ -54,5 +57,12 @@ public class DataSourcesAdminService
         if (!r.IsSuccessStatusCode) return new ProbarResp(false, $"HTTP {(int)r.StatusCode}");
         return JsonSerializer.Deserialize<ProbarResp>(await r.Content.ReadAsStringAsync(), _json)
             ?? new ProbarResp(false, "Respuesta vacia.");
+    }
+
+    public async Task<List<ColumnaOrigenDto>?> TraerColumnasAsync(Guid id, string sql)
+    {
+        var r = await _http.PostAsJsonAsync($"api/datasources/{id}/columnas", new { sql });
+        if (!r.IsSuccessStatusCode) return null; // null = error (SQL invalido, conexion, etc.)
+        return JsonSerializer.Deserialize<List<ColumnaOrigenDto>>(await r.Content.ReadAsStringAsync(), _json) ?? new();
     }
 }

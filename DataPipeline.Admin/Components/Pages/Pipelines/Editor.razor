@@ -32,16 +32,15 @@ else
                 <SfTextBox Placeholder="Tabla destino *" FloatLabelType="FloatLabelType.Always" @bind-Value="_form.TablaDestino" />
             </div>
             <div class="mb-3">
-                <SfTextBox Placeholder="Columnas clave (separadas por coma; requerido si Reemplazar)"
-                           FloatLabelType="FloatLabelType.Always" @bind-Value="_form.ColumnasClave" />
+                <SfMultiSelect TValue="List<string>" TItem="string" DataSource="NombresColumnas" @bind-Value="_form.ColumnasClave"
+                               Placeholder="Columnas clave (requerido si Reemplazar)" FloatLabelType="FloatLabelType.Always" AllowCustomValue="true" />
             </div>
             <div class="mb-3">
-                <SfTextBox Placeholder="Columna watermark (opcional — carga incremental)"
-                           FloatLabelType="FloatLabelType.Always" @bind-Value="_form.ColumnaWatermark" />
+                <SfDropDownList TValue="string" TItem="string" DataSource="NombresColumnas" @bind-Value="_form.ColumnaWatermark"
+                                Placeholder="Columna watermark (opcional)" FloatLabelType="FloatLabelType.Always" AllowFiltering="true" />
                 <div class="form-text">
-                    Si la usas, tu SQL debe filtrar con @@watermark (ej. WHERE @@watermark IS NULL OR fecha_mod &gt; @@watermark).
-                    Vaciar este campo y guardar resetea el watermark (la proxima corrida trae todo).
-                    Si la columna es de fecha, debe ser datetime/datetime2 (el valor se guarda y compara como texto ISO).
+                    Tu SQL debe filtrar con @@watermark (ej. WHERE @@watermark IS NULL OR fecha_mod &gt; @@watermark).
+                    Si la columna es fecha, debe ser datetime/datetime2. Usa "Traer columnas" para elegir de la lista.
                 </div>
             </div>
             <div class="row">
@@ -110,6 +109,15 @@ else
             <div class="mb-1">
                 <SfTextBox Placeholder="SQL *" FloatLabelType="FloatLabelType.Always" Multiline="true" @bind-Value="_form.Sql" />
             </div>
+            <div class="mt-2 d-flex align-items-center gap-2">
+                <SfButton CssClass="e-small" OnClick="TraerColumnas" Disabled="@(_form.DataSourceId is null || string.IsNullOrWhiteSpace(_form.Sql))">
+                    Traer columnas
+                </SfButton>
+                @if (_columnasMsg is not null)
+                {
+                    <span class="small text-muted">@_columnasMsg</span>
+                }
+            </div>
         </div>
     </div>
 
@@ -170,8 +178,9 @@ else
         public bool Habilitado { get; set; } = true;
         public string TablaDestino { get; set; } = "";
         public int ModoEscritura { get; set; } = 2; // Reemplazar
-        public string ColumnasClave { get; set; } = ""; // nombres separados por coma
+        public List<string> ColumnasClave { get; set; } = new();
         public string? ColumnaWatermark { get; set; } = ""; // columna del origen a trackear; vacio = no incremental
+        public List<ColumnaOrigenDto> EsquemaOrigen { get; set; } = new();
         public int Programacion { get; set; }        // 0 = BajoDemanda
         public string? HoraDelDia { get; set; } = "08:00";
         public int DiaDeLaSemana { get; set; } = 1;
@@ -207,6 +216,7 @@ else
     private bool _cargando = true;
     private bool _guardando;
     private string? _error;
+    private string? _columnasMsg;
 
     protected override async Task OnInitializedAsync()
     {
@@ -225,6 +235,21 @@ else
         _form.Transforms.Add(new TransformForm { Nombre = $"transform{_form.Transforms.Count + 1}" });
 
     private void QuitarTransform(TransformForm t) => _form.Transforms.Remove(t);
+
+    private async Task TraerColumnas()
+    {
+        _columnasMsg = "Trayendo...";
+        var cols = await Origenes.TraerColumnasAsync(_form.DataSourceId!.Value, _form.Sql);
+        if (cols is null)
+        {
+            _columnasMsg = "No se pudieron traer las columnas (revisa el SQL o la conexion).";
+            return;
+        }
+        _form.EsquemaOrigen = cols;
+        _columnasMsg = $"{cols.Count} columnas.";
+    }
+
+    private List<string> NombresColumnas => _form.EsquemaOrigen.Select(c => c.Nombre).ToList();
 
     private void Subir(TransformForm t)
     {
@@ -248,7 +273,7 @@ else
             _error = "El origen requiere un DataSource y un SQL.";
             return;
         }
-        if (_form.ModoEscritura == 2 && string.IsNullOrWhiteSpace(_form.ColumnasClave))
+        if (_form.ModoEscritura == 2 && _form.ColumnasClave.Count == 0)
         {
             _error = "Reemplazar requiere al menos una columna clave.";
             return;
@@ -313,8 +338,9 @@ else
             TablaDestino = _form.TablaDestino.Trim(),
             ModoEscritura = (ModoEscritura)_form.ModoEscritura,
             FilasPorLote = _form.FilasPorLote,
-            ColumnasClave = _form.ColumnasClave
-                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            ColumnasClave = _form.ColumnasClave.Select(c => c.Trim()).Where(c => c.Length > 0).ToList(),
+            EsquemaOrigen = _form.EsquemaOrigen
+                .Select(c => new ColumnaOrigen { Nombre = c.Nombre, Tipo = c.Tipo })
                 .ToList(),
             ColumnaWatermark = string.IsNullOrWhiteSpace(_form.ColumnaWatermark)
                 ? null
@@ -342,7 +368,10 @@ else
         _form.DiaDelMes = def.DiaDelMes ?? 1;
         _form.TablaDestino = def.TablaDestino;
         _form.ModoEscritura = (int)def.ModoEscritura;
-        _form.ColumnasClave = string.Join(", ", def.ColumnasClave);
+        _form.ColumnasClave = def.ColumnasClave.ToList();
+        _form.EsquemaOrigen = def.EsquemaOrigen
+            .Select(c => new ColumnaOrigenDto(c.Nombre, c.Tipo))
+            .ToList();
         _form.ColumnaWatermark = def.ColumnaWatermark ?? "";
         _form.FilasPorLote = def.FilasPorLote;
 
