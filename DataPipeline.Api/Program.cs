@@ -20,6 +20,7 @@ builder.Services.AddScoped<IPipelineStore, EfPipelineStore>();
 builder.Services.AddScoped<IHistorialCorridas, EfHistorialCorridas>();
 builder.Services.AddScoped<IDataSourceStore, EfDataSourceStore>();
 builder.Services.AddScoped<IConnectionTester, DataPipeline.Connectors.Testing.ConnectionTester>();
+builder.Services.AddScoped<ISchemaDiscoverer, DataPipeline.Connectors.Testing.SqlServerSchemaDiscoverer>();
 builder.Services.AddScoped<ISourceFactory, SourceFactory>();
 builder.Services.AddScoped<ITransformFactory, TransformFactory>();
 builder.Services.AddScoped<IDataStore>(_ => new SqliteDataStore(dataCs));

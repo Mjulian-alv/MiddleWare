@@ -14,12 +14,14 @@ public sealed class DataSourcesController : ControllerBase
     private readonly IDataSourceStore _store;
     private readonly IEncryptionService _enc;
     private readonly IConnectionTester _tester;
+    private readonly ISchemaDiscoverer _discoverer;
 
-    public DataSourcesController(IDataSourceStore store, IEncryptionService enc, IConnectionTester tester)
+    public DataSourcesController(IDataSourceStore store, IEncryptionService enc, IConnectionTester tester, ISchemaDiscoverer discoverer)
     {
         _store = store;
         _enc = enc;
         _tester = tester;
+        _discoverer = discoverer;
     }
 
     public sealed record DataSourceVista(Guid Id, string Nombre, TipoDataSource Tipo, bool Activo,
@@ -27,6 +29,8 @@ public sealed class DataSourcesController : ControllerBase
 
     public sealed record DataSourceUpsert(Guid Id, string Nombre, TipoDataSource Tipo,
         string? ConnectionString, string? Username, string? Password, string? BaseUrl, string? FilePath, bool Activo);
+
+    public sealed record ColumnasReq(string Sql);
 
     private static DataSourceVista AVista(DataSource d) =>
         new(d.Id, d.Nombre, d.Tipo, d.Activo, d.CreatedAt, d.UpdatedAt, !string.IsNullOrEmpty(d.ConnectionString));
@@ -85,5 +89,17 @@ public sealed class DataSourcesController : ControllerBase
         var cs = string.IsNullOrEmpty(d.ConnectionString) ? "" : _enc.Decrypt(d.ConnectionString);
         var r = await _tester.ProbarSqlServerAsync(cs, ct);
         return Ok(new { ok = r.Ok, error = r.Error });
+    }
+
+    [HttpPost("{id:guid}/columnas")]
+    public async Task<IActionResult> Columnas(Guid id, [FromBody] ColumnasReq req, CancellationToken ct)
+    {
+        var d = await _store.GetByIdAsync(id, ct);
+        if (d is null) return NotFound();
+        if (string.IsNullOrWhiteSpace(req.Sql)) return BadRequest(new { error = "SQL vacio." });
+
+        var cs = string.IsNullOrEmpty(d.ConnectionString) ? "" : _enc.Decrypt(d.ConnectionString);
+        var r = await _discoverer.DescubrirSqlServerAsync(cs, req.Sql, ct);
+        return r.Ok ? Ok(r.Columnas) : BadRequest(new { error = r.Error });
     }
 }
