@@ -1,6 +1,7 @@
-<div class="top-row ps-3 navbar navbar-dark">
-    <div class="container-fluid">
-        <a class="navbar-brand" href="">DataPipeline.Admin</a>
+<div class="top-row navbar">
+    <div class="brand">
+        <img class="brand-mark" src="brand/icon.png" alt="Alvear Sistemas" />
+        <span class="brand-text">DataPipeline<small>Panel de Administracion</small></span>
     </div>
 </div>
 
@@ -8,28 +9,25 @@
 
 <div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
     <nav class="nav flex-column">
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
-                <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Inicio
-            </NavLink>
-        </div>
 
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="datasources">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Origenes
-            </NavLink>
-        </div>
+        <span class="nav-section">General</span>
 
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="pipelines">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Pipelines
-            </NavLink>
-        </div>
+        <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
+            <span class="e-icons e-home" aria-hidden="true"></span> Inicio
+        </NavLink>
 
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="runs">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Corridas
-            </NavLink>
-        </div>
+        <span class="nav-section">Datos</span>
+
+        <NavLink class="nav-link" href="datasources">
+            <span class="e-icons e-folder" aria-hidden="true"></span> Origenes
+        </NavLink>
+
+        <NavLink class="nav-link" href="pipelines">
+            <span class="e-icons e-settings" aria-hidden="true"></span> Pipelines
+        </NavLink>
+
+        <NavLink class="nav-link" href="runs">
+            <span class="e-icons e-history" aria-hidden="true"></span> Corridas
+        </NavLink>
     </nav>
 </div>
