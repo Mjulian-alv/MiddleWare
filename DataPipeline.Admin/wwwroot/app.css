@@ -1,9 +1,11 @@
 html, body {
-    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, 'Helvetica Neue', Arial, sans-serif;
+    background: #f6f7fb;
+    color: #1e293b;
 }
 
 a, .btn-link {
-    color: #006bb7;
+    color: #6366f1;
 }
 
 .btn-primary {

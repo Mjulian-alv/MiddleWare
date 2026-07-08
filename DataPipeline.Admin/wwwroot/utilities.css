@@ -1,0 +1,279 @@
+/* ============================================================
+   Sistema de diseño del Admin — Consultas Genéricas
+   Variables, layout, paneles, encabezados y ajustes Syncfusion.
+   Escala de espaciado: 1 unidad = 4px.
+   ============================================================ */
+
+:root {
+    --brand: #6366f1;
+    --brand-2: #8b5cf6;
+    --brand-grad: linear-gradient(90deg, #6366f1, #8b5cf6);
+    --ink: #1e293b;
+    --ink-2: #64748b;
+    --ink-3: #94a3b8;
+    --bg: #f6f7fb;
+    --surface: #ffffff;
+    --border: #e2e8f0;
+    --radius: 12px;
+    --shadow-sm: 0 1px 2px rgba(15, 23, 42, .06);
+    --shadow-md: 0 4px 16px rgba(15, 23, 42, .08);
+    --ok: #10b981;
+    --warn: #f59e0b;
+    --error: #ef4444;
+    --info: #06b6d4;
+
+    /* Curvas de animación: las nativas de CSS son flojas, estas tienen intención. */
+    --ease-out: cubic-bezier(.23, 1, .32, 1);      /* entradas/salidas, feedback */
+    --ease-in-out: cubic-bezier(.77, 0, .175, 1);  /* movimiento en pantalla */
+    --ease: cubic-bezier(.4, 0, .2, 1);            /* hover/color */
+}
+
+h1, h2, h3, h4, h5, h6 { margin-top: 0; margin-bottom: 0; color: var(--ink); }
+
+/* ── Display / flex ── */
+.d-flex { display: flex; }
+.d-block { display: block; }
+.d-inline-flex { display: inline-flex; }
+.flex-wrap { flex-wrap: wrap; }
+.flex-column { flex-direction: column; }
+.flex-grow-1 { flex-grow: 1; }
+.align-center { align-items: center; }
+.justify-center { justify-content: center; }
+.justify-space-between { justify-content: space-between; }
+.gap-1 { gap: 4px; }
+.gap-2 { gap: 8px; }
+.gap-3 { gap: 12px; }
+.gap-4 { gap: 16px; }
+.w-100 { width: 100%; }
+.mx-auto { margin-left: auto; margin-right: auto; }
+
+/* ── Márgenes ── */
+.ma-1 { margin: 4px; } .ma-2 { margin: 8px; } .ma-3 { margin: 12px; } .ma-4 { margin: 16px; } .ma-8 { margin: 32px; }
+.mt-1 { margin-top: 4px; } .mt-2 { margin-top: 8px; } .mt-3 { margin-top: 12px; } .mt-4 { margin-top: 16px; }
+.mt-6 { margin-top: 24px; } .mt-8 { margin-top: 32px; }
+.mb-1 { margin-bottom: 4px; } .mb-2 { margin-bottom: 8px; } .mb-3 { margin-bottom: 12px; } .mb-4 { margin-bottom: 16px; }
+.mb-6 { margin-bottom: 24px; } .mb-8 { margin-bottom: 32px; }
+.ms-1, .ml-1 { margin-left: 4px; } .ms-2, .ml-2 { margin-left: 8px; }
+.me-1, .mr-1 { margin-right: 4px; } .me-2, .mr-2 { margin-right: 8px; }
+
+/* ── Paddings ── */
+.pa-1 { padding: 4px; } .pa-2 { padding: 8px; } .pa-3 { padding: 12px; } .pa-4 { padding: 16px; } .pa-8 { padding: 32px; }
+.px-2 { padding-left: 8px; padding-right: 8px; }
+.px-3 { padding-left: 12px; padding-right: 12px; }
+.px-4 { padding-left: 16px; padding-right: 16px; }
+.py-2 { padding-top: 8px; padding-bottom: 8px; }
+
+/* ── Grilla de 12 columnas ── */
+.fila-grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 60px; }
+.fila-grid > [class*="col-"] { grid-column: span 12; min-width: 0; }
+@media (min-width: 600px) {
+  .col-sm-4 { grid-column: span 4 !important; }
+  .col-sm-6 { grid-column: span 6 !important; }
+  .col-sm-8 { grid-column: span 8 !important; }
+}
+@media (min-width: 960px) {
+  .col-md-4 { grid-column: span 4 !important; }
+  .col-md-5 { grid-column: span 5 !important; }
+  .col-md-6 { grid-column: span 6 !important; }
+  .col-md-7 { grid-column: span 7 !important; }
+  .col-md-8 { grid-column: span 8 !important; }
+  .col-md-12 { grid-column: span 12 !important; }
+}
+
+/* ── Encabezado de página ── */
+.page-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+}
+.page-title {
+    font-size: 1.45rem;
+    font-weight: 800;
+    letter-spacing: -.01em;
+    color: var(--ink);
+    line-height: 1.2;
+}
+.page-subtitle {
+    font-size: .875rem;
+    color: var(--ink-2);
+    margin: .3rem 0 0;
+}
+
+/* ── Panel (tarjeta de contenido) ── */
+.panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-sm);
+}
+.panel-hover { transition: box-shadow .2s var(--ease-out), transform .2s var(--ease-out); }
+@media (hover: hover) and (pointer: fine) {
+    .panel-hover:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
+    /* La flecha "Ir a…" se adelanta y el ícono crece apenas: sugieren la acción. */
+    .panel-hover:hover .e-arrow-right { transform: translateX(3px); }
+    .panel-hover:hover .icon-tile { transform: scale(1.06); }
+}
+/* Press: empuje breve hacia abajo. El sistema "escucha" el click. */
+.panel-hover:active { transform: translateY(0) scale(.995); transition-duration: .1s; }
+.panel-hover .e-arrow-right { transition: transform .2s var(--ease-out); }
+.icon-tile { transition: transform .2s var(--ease-out); }
+.panel-header {
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border);
+    font-weight: 700;
+    font-size: .95rem;
+    color: var(--ink);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.panel-header .e-icons { color: var(--brand); }
+
+/* ── Icono de sección (tile cuadrado con tinte) ── */
+.icon-tile {
+    width: 42px;
+    height: 42px;
+    border-radius: 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(99, 102, 241, .12);
+    color: var(--brand);
+    flex-shrink: 0;
+}
+.icon-tile .e-icons { font-size: 1.15rem; }
+
+/* ── Tipografía auxiliar ── */
+.texto-body2 { font-size: .875rem; }
+.texto-caption { font-size: .75rem; }
+.texto-secundario { color: var(--ink-2); }
+
+/* ── Bloques de código de ejemplo ── */
+.bloque-codigo {
+    background: #f1f5f9;
+    border: 1px solid var(--border);
+    font-family: Consolas, Monaco, monospace;
+    font-size: .82rem;
+    color: #334155;
+    padding: 8px 10px;
+    border-radius: 8px;
+    white-space: pre-wrap;
+    margin: 0;
+}
+
+/* ── Tabla simple ── */
+.tabla-simple { width: 100%; border-collapse: collapse; font-size: .875rem; }
+.tabla-simple th, .tabla-simple td { padding: 8px 12px; text-align: left; border-bottom: 1px solid var(--border); }
+.tabla-simple th {
+    font-weight: 700;
+    font-size: .7rem;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: var(--ink-2);
+}
+.tabla-simple tbody tr:hover { background: #f8fafc; }
+
+/* ============================================================
+   Movimiento — entradas y microinteracciones
+   Solo se activan si el usuario no pidió reducir el movimiento.
+   El estado visible es el natural (fill-mode both sobre keyframes
+   seguros): si la animación no corre, el contenido se ve igual.
+   ============================================================ */
+@media (prefers-reduced-motion: no-preference) {
+
+    /* Encabezado de cada página: fundido sobrio al navegar. Rápido,
+       porque el admin se recorre muchas veces al día. */
+    .page-header { animation: cg-fade .32s var(--ease-out) both; }
+
+    /* Las celdas de la grilla aparecen en cascada (cards del inicio,
+       layouts en dos columnas). Paso corto: la cascada larga se siente lenta. */
+    .fila-grid > [class*="col-"] {
+        animation: cg-enter-up .4s var(--ease-out) both;
+    }
+    .fila-grid > [class*="col-"]:nth-child(1) { animation-delay: 0ms; }
+    .fila-grid > [class*="col-"]:nth-child(2) { animation-delay: 45ms; }
+    .fila-grid > [class*="col-"]:nth-child(3) { animation-delay: 90ms; }
+    .fila-grid > [class*="col-"]:nth-child(4) { animation-delay: 135ms; }
+    .fila-grid > [class*="col-"]:nth-child(5) { animation-delay: 180ms; }
+    .fila-grid > [class*="col-"]:nth-child(6) { animation-delay: 225ms; }
+    .fila-grid > [class*="col-"]:nth-child(7) { animation-delay: 270ms; }
+    .fila-grid > [class*="col-"]:nth-child(8) { animation-delay: 315ms; }
+    .fila-grid > [class*="col-"]:nth-child(n+9) { animation-delay: 350ms; }
+
+    /* Tarjeta centrada (login): escala desde casi-completo, nunca desde 0. */
+    .cg-pop { animation: cg-pop .34s var(--ease-out) both; }
+}
+
+@keyframes cg-enter-up {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes cg-fade {
+    from { opacity: 0; transform: translateY(4px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes cg-pop {
+    from { opacity: 0; transform: scale(.96); }
+    to   { opacity: 1; transform: scale(1); }
+}
+
+/* ============================================================
+   Ajustes cosméticos sobre componentes Syncfusion
+   ============================================================ */
+
+/* Botones: radios y peso consistentes */
+.e-btn {
+    border-radius: 8px;
+    font-weight: 600;
+    text-transform: none;
+    transition: transform .16s var(--ease-out), opacity .2s var(--ease), box-shadow .2s var(--ease);
+}
+/* Todo elemento presionable debe responder al toque. Sutil: 0.97. */
+.e-btn:active { transform: scale(.97); }
+.e-btn.e-primary:not(.e-flat):not(.e-outline) {
+    background: var(--brand-grad);
+    border: none;
+}
+.e-btn.e-primary:not(.e-flat):not(.e-outline):hover { opacity: .92; }
+
+/* Grillas: integradas al panel, header sobrio */
+.e-grid {
+    border-radius: var(--radius);
+    overflow: hidden;
+    border-color: var(--border);
+    box-shadow: var(--shadow-sm);
+}
+.e-grid .e-headercell {
+    background: #f8fafc;
+    font-size: .72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: var(--ink-2);
+}
+.e-grid .e-rowcell { font-size: .875rem; color: var(--ink); }
+.e-grid .e-row:hover .e-rowcell { background: #f8fafc; }
+
+/* Badges tipo "pill" */
+.e-badge {
+    border-radius: 20px;
+    font-weight: 700;
+    font-size: .68rem;
+    padding: .28em .8em;
+    letter-spacing: .02em;
+}
+
+/* Acordeones alineados con los paneles */
+.e-accordion {
+    border-radius: var(--radius);
+    border-color: var(--border);
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+}
+.e-accordion .e-acrdn-header { font-weight: 600; }
+
+/* Mensajes con bordes redondeados */
+.e-message { border-radius: 10px; }
