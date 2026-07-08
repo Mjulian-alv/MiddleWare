@@ -6,38 +6,39 @@
 
 <PageTitle>Ingresar — Admin</PageTitle>
 
-<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:1rem;background:#f6f7fb;">
-    <div class="p-4" style="width:100%;max-width:440px;background:#fff;border-radius:12px;box-shadow:0 12px 48px rgba(30,27,75,.12);">
-        <div style="text-align:center;margin-bottom:1.5rem;">
-            <h4 style="margin:0;">DataPipeline</h4>
-            <p style="margin:.2rem 0 0;color:#888;">Panel de Administracion</p>
+<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:1rem;background:radial-gradient(ellipse at top, #eef0ff 0%, #f6f7fb 55%);">
+    <div class="panel pa-8 cg-pop" style="width:100%;max-width:440px;box-shadow:0 12px 48px rgba(30,27,75,.12);">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:.6rem;margin-bottom:1.5rem;">
+            <img src="brand/logo.png" alt="Alvear Sistemas" style="width:220px;max-width:75%;height:auto;" />
+            <h5 style="text-align:center;margin-top:.4rem;">Panel de Administracion</h5>
+            <p class="texto-caption texto-secundario" style="margin:0;">DataPipeline</p>
         </div>
 
         @if (_modoConfiguracion)
         {
-            <p style="text-align:center;color:#888;" class="mb-3">
+            <p class="texto-body2 mb-6" style="text-align:center;color:#888;">
                 Primera vez: defini la contrasena del administrador. Podes dejar la sugerida o cambiarla.
             </p>
         }
 
         @if (_error is not null)
         {
-            <div class="alert alert-danger" role="alert">@_error</div>
+            <SfMessage Severity="MessageSeverity.Error" CssClass="mb-4">@_error</SfMessage>
         }
 
-        <div class="mb-3">
+        <div class="mb-4">
             <SfTextBox Placeholder="Usuario" FloatLabelType="FloatLabelType.Always"
                        Value="@AdminAuthService.UsuarioAdmin" Enabled="false" />
         </div>
 
-        <div class="mb-3" @onkeydown="OnKeyDown">
+        <div class="mb-6" @onkeydown="OnKeyDown">
             <SfTextBox Placeholder="@(_modoConfiguracion ? "Nueva contrasena" : "Contrasena")"
                        FloatLabelType="FloatLabelType.Always"
                        Type="InputType.Password"
                        @bind-Value="_password" Enabled="@(!_cargando)" />
         </div>
 
-        <SfButton CssClass="e-primary" style="width:100%;" Disabled="_cargando" OnClick="Confirmar">
+        <SfButton CssClass="e-primary w-100" Disabled="_cargando" OnClick="Confirmar">
             @(_modoConfiguracion ? "Guardar y entrar" : "Ingresar")
         </SfButton>
     </div>
