@@ -3,14 +3,19 @@
 
 <PageTitle>Origenes de datos — Admin</PageTitle>
 
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <h1 class="mb-0">Origenes de datos</h1>
-    <SfButton CssClass="e-primary" OnClick="NuevoOrigen">Nuevo origen</SfButton>
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Origenes de datos</h1>
+        <p class="page-subtitle">Conexiones a las bases de datos que alimentan los pipelines.</p>
+    </div>
+    <SfButton CssClass="e-primary" OnClick="NuevoOrigen">
+        <span class="e-icons e-plus" style="margin-right:.4rem;font-size:.75rem;"></span>Nuevo origen
+    </SfButton>
 </div>
 
 @if (_feedback is not null)
 {
-    <div class="alert @(_feedbackOk ? "alert-success" : "alert-danger")" role="alert" aria-live="polite">@_feedback</div>
+    <SfMessage Severity="@(_feedbackOk ? MessageSeverity.Success : MessageSeverity.Error)" CssClass="mb-3">@_feedback</SfMessage>
 }
 
 <SfGrid DataSource="_items" AllowPaging="true" AllowSorting="true">
@@ -20,7 +25,12 @@
         <GridColumn HeaderText="Tipo" Width="120">
             <Template Context="ctx">@TipoTexto(((DataSourceVista)ctx).Tipo)</Template>
         </GridColumn>
-        <GridColumn Field="@nameof(DataSourceVista.Activo)" HeaderText="Activo" Width="90"></GridColumn>
+        <GridColumn HeaderText="Activo" Width="100" TextAlign="TextAlign.Center">
+            <Template Context="ctx">
+                @{ var d = (DataSourceVista)ctx; }
+                <span class="e-badge @(d.Activo ? "e-badge-success" : "e-badge-danger")">@(d.Activo ? "Si" : "No")</span>
+            </Template>
+        </GridColumn>
         <GridColumn Field="@nameof(DataSourceVista.CreatedAt)" HeaderText="Creado" Type="ColumnType.DateTime" Format="g" Width="160"></GridColumn>
         <GridColumn Field="@nameof(DataSourceVista.UpdatedAt)" HeaderText="Modificado" Type="ColumnType.DateTime" Format="g" Width="160"></GridColumn>
         <GridColumn HeaderText="Acciones" Width="260">
@@ -43,7 +53,7 @@
                 <SfTextBox Placeholder="Nombre *" FloatLabelType="FloatLabelType.Always" @bind-Value="_form.Nombre" />
                 @if (_errorNombre is not null)
                 {
-                    <small class="text-danger">@_errorNombre</small>
+                    <small style="color:var(--error);">@_errorNombre</small>
                 }
             </div>
 
@@ -79,7 +89,7 @@
 
             @if (_form.Id != Guid.Empty)
             {
-                <small class="text-muted d-block mb-2">Deja los secretos vacios para conservar los actuales.</small>
+                <small class="texto-secundario d-block mb-2">Deja los secretos vacios para conservar los actuales.</small>
             }
 
             <div class="mb-2">
@@ -88,7 +98,7 @@
 
             @if (_errorForm is not null)
             {
-                <div class="alert alert-danger py-2" role="alert">@_errorForm</div>
+                <SfMessage Severity="MessageSeverity.Error" CssClass="mb-2">@_errorForm</SfMessage>
             }
         </Content>
         <FooterTemplate>
