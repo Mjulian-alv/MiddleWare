@@ -6,25 +6,27 @@
 
 <PageTitle>@(Id is null ? "Nuevo pipeline" : "Editar pipeline") — Admin</PageTitle>
 
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <h1 class="mb-0">@(Id is null ? "Nuevo pipeline" : "Editar pipeline")</h1>
-    <a class="btn btn-link" href="pipelines">Volver a la lista</a>
+<div class="page-header">
+    <div>
+        <h1 class="page-title">@(Id is null ? "Nuevo pipeline" : "Editar pipeline")</h1>
+    </div>
+    <SfButton CssClass="e-flat" OnClick="@(() => Nav.NavigateTo("/pipelines"))">Volver a la lista</SfButton>
 </div>
 
 @if (_error is not null)
 {
-    <div class="alert alert-danger" role="alert" aria-live="polite">@_error</div>
+    <SfMessage Severity="MessageSeverity.Error" CssClass="mb-3">@_error</SfMessage>
 }
 
 @if (_cargando)
 {
-    <p>Cargando...</p>
+    <div style="position:relative;min-height:80px;"><SfSpinner Visible="true" /></div>
 }
 else
 {
-    <div class="card mb-3">
-        <div class="card-header fw-semibold">Generales</div>
-        <div class="card-body">
+    <div class="panel mb-4">
+        <div class="panel-header">Generales</div>
+        <div class="pa-4">
             <div class="mb-3">
                 <SfTextBox Placeholder="Nombre *" FloatLabelType="FloatLabelType.Always" @bind-Value="_form.Nombre" />
             </div>
@@ -38,20 +40,20 @@ else
             <div class="mb-3">
                 <SfDropDownList TValue="string" TItem="string" DataSource="NombresColumnas" @bind-Value="_form.ColumnaWatermark"
                                 Placeholder="Columna watermark (opcional)" FloatLabelType="FloatLabelType.Always" AllowFiltering="true" />
-                <div class="form-text">
+                <div class="texto-caption texto-secundario mt-1">
                     Tu SQL debe filtrar con @@watermark (ej. WHERE @@watermark IS NULL OR fecha_mod &gt; @@watermark).
                     Si la columna es fecha, debe ser datetime/datetime2. Usa "Traer columnas" para elegir de la lista.
                 </div>
             </div>
-            <div class="row">
-                <div class="col-md-6 mb-3">
+            <div class="d-flex gap-3">
+                <div class="flex-grow-1 mb-3">
                     <SfDropDownList TValue="int" TItem="Opcion" DataSource="_modos" @bind-Value="_form.ModoEscritura"
                                     Placeholder="Modo de escritura" FloatLabelType="FloatLabelType.Always">
                         <DropDownListFieldSettings Value="Valor" Text="Texto"></DropDownListFieldSettings>
                     </SfDropDownList>
                 </div>
-                <div class="col-md-6 mb-3">
-                    <label class="form-label small">Filas por lote</label>
+                <div class="flex-grow-1 mb-3">
+                    <label class="texto-caption texto-secundario">Filas por lote</label>
                     <SfNumericTextBox TValue="int" @bind-Value="_form.FilasPorLote" Min="1"></SfNumericTextBox>
                 </div>
             </div>
@@ -61,11 +63,11 @@ else
         </div>
     </div>
 
-    <div class="card mb-3">
-        <div class="card-header fw-semibold">Programacion</div>
-        <div class="card-body">
-            <div class="row">
-                <div class="col-md-4 mb-3">
+    <div class="panel mb-4">
+        <div class="panel-header">Programacion</div>
+        <div class="pa-4">
+            <div class="d-flex gap-3 flex-wrap">
+                <div class="flex-grow-1 mb-3">
                     <SfDropDownList TValue="int" TItem="Opcion" DataSource="_programaciones" @bind-Value="_form.Programacion"
                                     Placeholder="Programacion" FloatLabelType="FloatLabelType.Always">
                         <DropDownListFieldSettings Value="Valor" Text="Texto"></DropDownListFieldSettings>
@@ -73,13 +75,13 @@ else
                 </div>
                 @if (_form.Programacion != 0)
                 {
-                    <div class="col-md-4 mb-3">
+                    <div class="flex-grow-1 mb-3">
                         <SfTextBox Placeholder="Hora del dia (HH:mm)" FloatLabelType="FloatLabelType.Always" @bind-Value="_form.HoraDelDia" />
                     </div>
                 }
                 @if (_form.Programacion == 2)
                 {
-                    <div class="col-md-4 mb-3">
+                    <div class="flex-grow-1 mb-3">
                         <SfDropDownList TValue="int" TItem="Opcion" DataSource="_diasSemana" @bind-Value="_form.DiaDeLaSemana"
                                         Placeholder="Dia de la semana" FloatLabelType="FloatLabelType.Always">
                             <DropDownListFieldSettings Value="Valor" Text="Texto"></DropDownListFieldSettings>
@@ -88,8 +90,8 @@ else
                 }
                 @if (_form.Programacion == 3)
                 {
-                    <div class="col-md-4 mb-3">
-                        <label class="form-label small">Dia del mes (1-28)</label>
+                    <div class="flex-grow-1 mb-3">
+                        <label class="texto-caption texto-secundario">Dia del mes (1-28)</label>
                         <SfNumericTextBox TValue="int" @bind-Value="_form.DiaDelMes" Min="1" Max="28"></SfNumericTextBox>
                     </div>
                 }
@@ -97,9 +99,9 @@ else
         </div>
     </div>
 
-    <div class="card mb-3">
-        <div class="card-header fw-semibold">Origen</div>
-        <div class="card-body">
+    <div class="panel mb-4">
+        <div class="panel-header">Origen</div>
+        <div class="pa-4">
             <div class="mb-3">
                 <SfDropDownList TValue="Guid?" TItem="DataSourceVista" DataSource="_datasources" @bind-Value="_form.DataSourceId"
                                 Placeholder="DataSource *" FloatLabelType="FloatLabelType.Always">
@@ -109,34 +111,34 @@ else
             <div class="mb-1">
                 <SfTextBox Placeholder="SQL *" FloatLabelType="FloatLabelType.Always" Multiline="true" @bind-Value="_form.Sql" />
             </div>
-            <div class="mt-2 d-flex align-items-center gap-2">
+            <div class="mt-2 d-flex align-center gap-2">
                 <SfButton CssClass="e-small" OnClick="TraerColumnas" Disabled="@(_form.DataSourceId is null || string.IsNullOrWhiteSpace(_form.Sql))">
                     Traer columnas
                 </SfButton>
                 @if (_columnasMsg is not null)
                 {
-                    <span class="small text-muted">@_columnasMsg</span>
+                    <span class="texto-caption texto-secundario">@_columnasMsg</span>
                 }
             </div>
         </div>
     </div>
 
-    <div class="card mb-3">
-        <div class="card-header d-flex justify-content-between align-items-center">
-            <span class="fw-semibold">Transformaciones</span>
+    <div class="panel mb-4">
+        <div class="panel-header d-flex justify-space-between align-center">
+            <span>Transformaciones</span>
             <SfButton CssClass="e-small" OnClick="AgregarTransform">+ Agregar transformacion</SfButton>
         </div>
-        <div class="card-body">
+        <div class="pa-4">
             @if (_form.Transforms.Count == 0)
             {
-                <div class="text-muted">Sin transformaciones. El origen se escribe tal cual en la tabla destino.</div>
+                <div class="texto-secundario">Sin transformaciones. El origen se escribe tal cual en la tabla destino.</div>
             }
             @for (var i = 0; i < _form.Transforms.Count; i++)
             {
                 var t = _form.Transforms[i];
                 var idx = i;
-                <div class="border rounded p-3 mb-3">
-                    <div class="d-flex justify-content-between align-items-center mb-2">
+                <div class="panel pa-3 mb-3">
+                    <div class="d-flex justify-space-between align-center mb-2">
                         <strong>Paso @(idx + 1)</strong>
                         <span class="d-flex gap-1">
                             <SfButton CssClass="e-small" Disabled="@(idx == 0)" OnClick="@(() => Subir(t))">▲</SfButton>
@@ -158,11 +160,11 @@ else
         </div>
     </div>
 
-    <div class="d-flex gap-2 mb-5">
+    <div class="d-flex gap-2 mb-8">
         <SfButton CssClass="e-primary" OnClick="Guardar" Disabled="_guardando">
             @(_guardando ? "Guardando..." : "Guardar")
         </SfButton>
-        <a class="btn btn-light" href="pipelines">Cancelar</a>
+        <SfButton CssClass="e-flat" OnClick="@(() => Nav.NavigateTo("/pipelines"))">Cancelar</SfButton>
     </div>
 }
 

@@ -1,16 +1,16 @@
 @* Editor de un mapa clave/valor (rename/cast/computed). Sin JSON: filas con agregar/quitar. *@
 
 <div class="mb-3">
-    <label class="form-label fw-semibold">@Titulo</label>
+    <label class="texto-body2" style="font-weight:600;">@Titulo</label>
 
     @if (Items.Count == 0)
     {
-        <div class="text-muted small mb-1">Sin entradas.</div>
+        <div class="texto-caption texto-secundario mb-1">Sin entradas.</div>
     }
 
     @foreach (var kv in Items)
     {
-        <div class="d-flex gap-2 mb-1 align-items-center">
+        <div class="d-flex gap-2 mb-1 align-center">
             <div style="flex:1;">
                 <SfTextBox Placeholder="@ClaveLabel" @bind-Value="kv.Clave" />
             </div>
