@@ -4,21 +4,31 @@
 
 <PageTitle>Pipelines — Admin</PageTitle>
 
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <h1 class="mb-0">Pipelines</h1>
-    <SfButton CssClass="e-primary" OnClick="@(() => Nav.NavigateTo("/pipelines/nuevo"))">Nuevo pipeline</SfButton>
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Pipelines</h1>
+        <p class="page-subtitle">Definicion de pipelines, edicion y corrida on-demand.</p>
+    </div>
+    <SfButton CssClass="e-primary" OnClick="@(() => Nav.NavigateTo("/pipelines/nuevo"))">
+        <span class="e-icons e-plus" style="margin-right:.4rem;font-size:.75rem;"></span>Nuevo pipeline
+    </SfButton>
 </div>
 
 @if (_mensaje is not null)
 {
-    <div class="alert @(_mensajeOk ? "alert-success" : "alert-danger")" role="alert">@_mensaje</div>
+    <SfMessage Severity="@(_mensajeOk ? MessageSeverity.Success : MessageSeverity.Error)" CssClass="mb-3">@_mensaje</SfMessage>
 }
 
 <SfGrid DataSource="_items" AllowPaging="true" AllowSorting="true">
     <GridPageSettings PageSize="15"></GridPageSettings>
     <GridColumns>
         <GridColumn Field="@nameof(PipelineDefinition.Nombre)" HeaderText="Nombre"></GridColumn>
-        <GridColumn Field="@nameof(PipelineDefinition.Habilitado)" HeaderText="Habilitado" Width="110"></GridColumn>
+        <GridColumn HeaderText="Habilitado" Width="120" TextAlign="TextAlign.Center">
+            <Template Context="ctx">
+                @{ var p = (PipelineDefinition)ctx; }
+                <span class="e-badge @(p.Habilitado ? "e-badge-success" : "e-badge-danger")">@(p.Habilitado ? "Si" : "No")</span>
+            </Template>
+        </GridColumn>
         <GridColumn Field="@nameof(PipelineDefinition.Programacion)" HeaderText="Programacion" Width="140"></GridColumn>
         <GridColumn Field="@nameof(PipelineDefinition.ProximaCorrida)" HeaderText="Proxima" Type="ColumnType.DateTime" Format="g" Width="170"></GridColumn>
         <GridColumn Field="@nameof(PipelineDefinition.UltimaCorrida)" HeaderText="Ultima" Type="ColumnType.DateTime" Format="g" Width="170"></GridColumn>
