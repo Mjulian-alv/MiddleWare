@@ -2,11 +2,60 @@
 
 <PageTitle>Inicio — DataPipeline Admin</PageTitle>
 
-<h1>DataPipeline</h1>
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Panel de Administracion</h1>
+        <p class="page-subtitle">Gestiona origenes de datos, pipelines y monitorea las corridas.</p>
+    </div>
+</div>
 
-<p>Panel de administracion. Desde aca podes gestionar y monitorear pipelines.</p>
-
-<ul>
-    <li><a href="pipelines">Pipelines</a> — lista, editar y correr on-demand.</li>
-    <li><a href="runs">Corridas</a> — historial de ejecuciones.</li>
-</ul>
+<div class="fila-grid">
+    <div class="col-sm-4">
+        <a href="/pipelines" style="text-decoration:none;">
+            <div class="panel panel-hover pa-4 d-flex flex-column gap-3" style="height:100%;">
+                <span class="icon-tile"><span class="e-icons e-settings"></span></span>
+                <div class="flex-grow-1">
+                    <h6 class="mb-1">Pipelines</h6>
+                    <p class="texto-body2 texto-secundario" style="margin:0;">
+                        Definicion de pipelines Source-Transform-Store, edicion y corrida on-demand.
+                    </p>
+                </div>
+                <span class="texto-body2" style="color:var(--brand);font-weight:600;">
+                    Ir a Pipelines <span class="e-icons e-arrow-right" style="font-size:.7rem;"></span>
+                </span>
+            </div>
+        </a>
+    </div>
+    <div class="col-sm-4">
+        <a href="/datasources" style="text-decoration:none;">
+            <div class="panel panel-hover pa-4 d-flex flex-column gap-3" style="height:100%;">
+                <span class="icon-tile" style="background:rgba(6,182,212,.12);color:#06b6d4;"><span class="e-icons e-folder"></span></span>
+                <div class="flex-grow-1">
+                    <h6 class="mb-1">Origenes de datos</h6>
+                    <p class="texto-body2 texto-secundario" style="margin:0;">
+                        Conexiones a las bases de datos que alimentan los pipelines.
+                    </p>
+                </div>
+                <span class="texto-body2" style="color:var(--brand);font-weight:600;">
+                    Ir a Origenes <span class="e-icons e-arrow-right" style="font-size:.7rem;"></span>
+                </span>
+            </div>
+        </a>
+    </div>
+    <div class="col-sm-4">
+        <a href="/runs" style="text-decoration:none;">
+            <div class="panel panel-hover pa-4 d-flex flex-column gap-3" style="height:100%;">
+                <span class="icon-tile" style="background:rgba(16,185,129,.12);color:#10b981;"><span class="e-icons e-history"></span></span>
+                <div class="flex-grow-1">
+                    <h6 class="mb-1">Corridas</h6>
+                    <p class="texto-body2 texto-secundario" style="margin:0;">
+                        Historial de ejecuciones con filas leidas, escritas y estado.
+                    </p>
+                </div>
+                <span class="texto-body2" style="color:var(--brand);font-weight:600;">
+                    Ir a Corridas <span class="e-icons e-arrow-right" style="font-size:.7rem;"></span>
+                </span>
+            </div>
+        </a>
+    </div>
+</div>
