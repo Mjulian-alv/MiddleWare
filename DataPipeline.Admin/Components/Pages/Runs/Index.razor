@@ -3,14 +3,32 @@
 
 <PageTitle>Corridas — Admin</PageTitle>
 
-<h1>Corridas</h1>
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Corridas</h1>
+        <p class="page-subtitle">Historial de ejecuciones de los pipelines.</p>
+    </div>
+</div>
 
 <SfGrid DataSource="_items" AllowPaging="true" AllowSorting="true">
     <GridPageSettings PageSize="20"></GridPageSettings>
     <GridColumns>
         <GridColumn Field="@nameof(PipelineRun.Inicio)" HeaderText="Inicio" Type="ColumnType.DateTime" Format="g" Width="170"></GridColumn>
         <GridColumn Field="@nameof(PipelineRun.Fin)" HeaderText="Fin" Type="ColumnType.DateTime" Format="g" Width="170"></GridColumn>
-        <GridColumn Field="@nameof(PipelineRun.Estado)" HeaderText="Estado" Width="110"></GridColumn>
+        <GridColumn HeaderText="Estado" Width="120" TextAlign="TextAlign.Center">
+            <Template Context="ctx">
+                @{
+                    var r = (PipelineRun)ctx;
+                    var badge = r.Estado switch
+                    {
+                        EstadoCorrida.Ok => "e-badge-success",
+                        EstadoCorrida.Fallida => "e-badge-danger",
+                        _ => "e-badge-warning"
+                    };
+                }
+                <span class="e-badge @badge">@r.Estado</span>
+            </Template>
+        </GridColumn>
         <GridColumn Field="@nameof(PipelineRun.FilasLeidas)" HeaderText="Leidas" Width="100"></GridColumn>
         <GridColumn Field="@nameof(PipelineRun.FilasEscritas)" HeaderText="Escritas" Width="100"></GridColumn>
         <GridColumn Field="@nameof(PipelineRun.Mensaje)" HeaderText="Mensaje"></GridColumn>
