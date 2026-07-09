@@ -24,146 +24,197 @@
 }
 else
 {
-    <div class="panel mb-4">
-        <div class="panel-header">Generales</div>
-        <div class="pa-4">
-            <div class="mb-3">
+    <div class="panel mb-3">
+        <div class="pa-4 d-flex gap-3 align-center flex-wrap">
+            <div class="flex-grow-1">
                 <SfTextBox Placeholder="Nombre *" FloatLabelType="FloatLabelType.Always" @bind-Value="_form.Nombre" />
             </div>
-            <div class="mb-3">
-                <SfTextBox Placeholder="Tabla destino *" FloatLabelType="FloatLabelType.Always" @bind-Value="_form.TablaDestino" />
-            </div>
-            <div class="mb-3">
-                <SfMultiSelect TValue="List<string>" TItem="string" DataSource="NombresColumnas" @bind-Value="_form.ColumnasClave"
-                               Placeholder="Columnas clave (requerido si Reemplazar)" FloatLabelType="FloatLabelType.Always" AllowCustomValue="true" />
-            </div>
-            <div class="mb-3">
-                <SfDropDownList TValue="string" TItem="string" DataSource="NombresColumnas" @bind-Value="_form.ColumnaWatermark"
-                                Placeholder="Columna watermark (opcional)" FloatLabelType="FloatLabelType.Always" AllowFiltering="true" />
-                <div class="texto-caption texto-secundario mt-1">
-                    Tu SQL debe filtrar con @@watermark (ej. WHERE @@watermark IS NULL OR fecha_mod &gt; @@watermark).
-                    Si la columna es fecha, debe ser datetime/datetime2. Usa "Traer columnas" para elegir de la lista.
-                </div>
-            </div>
-            <div class="d-flex gap-3">
-                <div class="flex-grow-1 mb-3">
-                    <SfDropDownList TValue="int" TItem="Opcion" DataSource="_modos" @bind-Value="_form.ModoEscritura"
-                                    Placeholder="Modo de escritura" FloatLabelType="FloatLabelType.Always">
-                        <DropDownListFieldSettings Value="Valor" Text="Texto"></DropDownListFieldSettings>
+            <SfCheckBox @bind-Checked="_form.Habilitado" Label="Habilitado"></SfCheckBox>
+        </div>
+    </div>
+
+    <div class="d-flex align-center gap-2 mb-4 flex-wrap">
+        <SfButton CssClass="@(_pasoActivo == 1 ? "e-primary e-small" : "e-flat e-small")" Disabled="@(!PasoHabilitado(1))" OnClick="@(() => IrAPaso(1))">1. Origen y columnas</SfButton>
+        <span class="texto-secundario">›</span>
+        <SfButton CssClass="@(_pasoActivo == 2 ? "e-primary e-small" : "e-flat e-small")" Disabled="@(!PasoHabilitado(2))" OnClick="@(() => IrAPaso(2))">2. Salida</SfButton>
+        <span class="texto-secundario">›</span>
+        <SfButton CssClass="@(_pasoActivo == 3 ? "e-primary e-small" : "e-flat e-small")" Disabled="@(!PasoHabilitado(3))" OnClick="@(() => IrAPaso(3))">3. Transformaciones</SfButton>
+    </div>
+
+    @if (_pasoActivo == 1)
+    {
+        <div class="panel mb-4">
+            <div class="panel-header">Paso 1 — Origen y columnas</div>
+            <div class="pa-4">
+                <div class="mb-3">
+                    <SfDropDownList TValue="Guid?" TItem="DataSourceVista" DataSource="_datasources" @bind-Value="_form.DataSourceId"
+                                    Placeholder="DataSource *" FloatLabelType="FloatLabelType.Always">
+                        <DropDownListFieldSettings Value="Id" Text="Nombre"></DropDownListFieldSettings>
                     </SfDropDownList>
                 </div>
-                <div class="flex-grow-1 mb-3">
+                <div class="mb-1">
+                    <SfTextBox Placeholder="SQL *" FloatLabelType="FloatLabelType.Always" Multiline="true" @bind-Value="_form.Sql" />
+                </div>
+                <div class="mt-2 mb-3 d-flex align-center gap-2">
+                    <SfButton CssClass="e-small" OnClick="TraerColumnas" Disabled="@(_form.DataSourceId is null || string.IsNullOrWhiteSpace(_form.Sql))">
+                        Traer columnas
+                    </SfButton>
+                    @if (_columnasMsg is not null)
+                    {
+                        <span class="texto-caption texto-secundario">@_columnasMsg</span>
+                    }
+                </div>
+                @if (_form.EsquemaOrigen.Count > 0)
+                {
+                    <div class="d-flex flex-wrap gap-2 mb-3">
+                        @foreach (var c in _form.EsquemaOrigen)
+                        {
+                            <span style="border:1px solid #d0d0d0;border-radius:6px;padding:2px 8px;font-size:12px;">@c.Nombre <span class="texto-secundario">@c.Tipo</span></span>
+                        }
+                    </div>
+                    <div class="mb-1">
+                        <SfDropDownList TValue="string" TItem="string" DataSource="NombresColumnas" @bind-Value="_form.ColumnaWatermark"
+                                        Placeholder="Columna watermark (opcional)" FloatLabelType="FloatLabelType.Always" AllowFiltering="true" />
+                        <div class="texto-caption texto-secundario mt-1">
+                            Tu SQL debe filtrar con @@watermark (ej. WHERE @@watermark IS NULL OR fecha_mod &gt; @@watermark).
+                            Si la columna es fecha, debe ser datetime/datetime2.
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+
+    @if (_pasoActivo == 2)
+    {
+        <div class="panel mb-4">
+            <div class="panel-header">Paso 2 — Salida</div>
+            <div class="pa-4">
+                @if (_form.EsquemaOrigen.Count > 0)
+                {
+                    <div class="texto-caption texto-secundario mb-1">Columnas del origen</div>
+                    <div class="d-flex flex-wrap gap-2 mb-3">
+                        @foreach (var n in NombresColumnas)
+                        {
+                            <span style="border:1px solid #d0d0d0;border-radius:6px;padding:2px 8px;font-size:12px;">@n</span>
+                        }
+                    </div>
+                }
+                <div class="mb-3">
+                    <SfMultiSelect TValue="List<string>" TItem="string" DataSource="NombresColumnas" @bind-Value="_form.ColumnasClave"
+                                   Placeholder="Columnas clave (requerido si Reemplazar)" FloatLabelType="FloatLabelType.Always" AllowCustomValue="true" />
+                </div>
+                <div class="d-flex gap-3">
+                    <div class="flex-grow-1 mb-3">
+                        <SfDropDownList TValue="int" TItem="Opcion" DataSource="_modos" @bind-Value="_form.ModoEscritura"
+                                        Placeholder="Modo de escritura" FloatLabelType="FloatLabelType.Always">
+                            <DropDownListFieldSettings Value="Valor" Text="Texto"></DropDownListFieldSettings>
+                        </SfDropDownList>
+                    </div>
+                    <div class="flex-grow-1 mb-3">
+                        <SfTextBox Placeholder="Tabla destino *" FloatLabelType="FloatLabelType.Always" @bind-Value="_form.TablaDestino" />
+                    </div>
+                </div>
+                <div class="mb-1" style="max-width:220px;">
                     <label class="texto-caption texto-secundario">Filas por lote</label>
                     <SfNumericTextBox TValue="int" @bind-Value="_form.FilasPorLote" Min="1"></SfNumericTextBox>
                 </div>
             </div>
-            <div class="mb-1">
-                <SfCheckBox @bind-Checked="_form.Habilitado" Label="Habilitado"></SfCheckBox>
-            </div>
         </div>
-    </div>
+    }
 
-    <div class="panel mb-4">
-        <div class="panel-header">Programacion</div>
-        <div class="pa-4">
-            <div class="d-flex gap-3 flex-wrap">
-                <div class="flex-grow-1 mb-3">
-                    <SfDropDownList TValue="int" TItem="Opcion" DataSource="_programaciones" @bind-Value="_form.Programacion"
-                                    Placeholder="Programacion" FloatLabelType="FloatLabelType.Always">
-                        <DropDownListFieldSettings Value="Valor" Text="Texto"></DropDownListFieldSettings>
-                    </SfDropDownList>
-                </div>
-                @if (_form.Programacion != 0)
+    @if (_pasoActivo == 3)
+    {
+        <div class="panel mb-4">
+            <div class="panel-header d-flex justify-space-between align-center">
+                <span>Paso 3 — Transformaciones (opcional)</span>
+                <SfButton CssClass="e-small" OnClick="AgregarTransform">+ Agregar transformacion</SfButton>
+            </div>
+            <div class="pa-4">
+                @if (_form.Transforms.Count == 0)
                 {
-                    <div class="flex-grow-1 mb-3">
-                        <SfTextBox Placeholder="Hora del dia (HH:mm)" FloatLabelType="FloatLabelType.Always" @bind-Value="_form.HoraDelDia" />
+                    <div class="texto-secundario">Sin transformaciones. El origen se escribe tal cual en la tabla destino.</div>
+                }
+                @for (var i = 0; i < _form.Transforms.Count; i++)
+                {
+                    var t = _form.Transforms[i];
+                    var idx = i;
+                    <div class="panel pa-3 mb-3">
+                        <div class="d-flex justify-space-between align-center mb-2">
+                            <strong>Paso @(idx + 1)</strong>
+                            <span class="d-flex gap-1">
+                                <SfButton CssClass="e-small" Disabled="@(idx == 0)" OnClick="@(() => Subir(t))">▲</SfButton>
+                                <SfButton CssClass="e-small" Disabled="@(idx == _form.Transforms.Count - 1)" OnClick="@(() => Bajar(t))">▼</SfButton>
+                                <SfButton CssClass="e-small e-danger e-outline" OnClick="@(() => QuitarTransform(t))">Quitar</SfButton>
+                            </span>
+                        </div>
+                        <div class="mb-2">
+                            <SfTextBox Placeholder="Nombre del paso" FloatLabelType="FloatLabelType.Always" @bind-Value="t.Nombre" />
+                        </div>
+                        <KeyValueEditor Items="t.Rename" Titulo="Rename (renombrar columnas)" ClaveLabel="Columna origen" ValorLabel="Nuevo nombre" />
+                        <KeyValueEditor Items="t.Cast" Titulo="Cast (convertir tipos)" ClaveLabel="Columna" ValorLabel="Tipo (int/long/decimal/double/bool/date/string)" />
+                        <KeyValueEditor Items="t.Computed" Titulo="Computed (columnas calculadas)" ClaveLabel="Nueva columna" ValorLabel="Expresion (NCalc)" />
+                        <div class="mb-1">
+                            <SfTextBox Placeholder="Filter (expresion booleana NCalc, opcional)" FloatLabelType="FloatLabelType.Always" @bind-Value="t.Filter" />
+                        </div>
                     </div>
                 }
-                @if (_form.Programacion == 2)
-                {
+            </div>
+        </div>
+
+        <div class="panel mb-4">
+            <div class="panel-header">Programacion</div>
+            <div class="pa-4">
+                <div class="d-flex gap-3 flex-wrap">
                     <div class="flex-grow-1 mb-3">
-                        <SfDropDownList TValue="int" TItem="Opcion" DataSource="_diasSemana" @bind-Value="_form.DiaDeLaSemana"
-                                        Placeholder="Dia de la semana" FloatLabelType="FloatLabelType.Always">
+                        <SfDropDownList TValue="int" TItem="Opcion" DataSource="_programaciones" @bind-Value="_form.Programacion"
+                                        Placeholder="Programacion" FloatLabelType="FloatLabelType.Always">
                             <DropDownListFieldSettings Value="Valor" Text="Texto"></DropDownListFieldSettings>
                         </SfDropDownList>
                     </div>
-                }
-                @if (_form.Programacion == 3)
-                {
-                    <div class="flex-grow-1 mb-3">
-                        <label class="texto-caption texto-secundario">Dia del mes (1-28)</label>
-                        <SfNumericTextBox TValue="int" @bind-Value="_form.DiaDelMes" Min="1" Max="28"></SfNumericTextBox>
-                    </div>
-                }
-            </div>
-        </div>
-    </div>
-
-    <div class="panel mb-4">
-        <div class="panel-header">Origen</div>
-        <div class="pa-4">
-            <div class="mb-3">
-                <SfDropDownList TValue="Guid?" TItem="DataSourceVista" DataSource="_datasources" @bind-Value="_form.DataSourceId"
-                                Placeholder="DataSource *" FloatLabelType="FloatLabelType.Always">
-                    <DropDownListFieldSettings Value="Id" Text="Nombre"></DropDownListFieldSettings>
-                </SfDropDownList>
-            </div>
-            <div class="mb-1">
-                <SfTextBox Placeholder="SQL *" FloatLabelType="FloatLabelType.Always" Multiline="true" @bind-Value="_form.Sql" />
-            </div>
-            <div class="mt-2 d-flex align-center gap-2">
-                <SfButton CssClass="e-small" OnClick="TraerColumnas" Disabled="@(_form.DataSourceId is null || string.IsNullOrWhiteSpace(_form.Sql))">
-                    Traer columnas
-                </SfButton>
-                @if (_columnasMsg is not null)
-                {
-                    <span class="texto-caption texto-secundario">@_columnasMsg</span>
-                }
-            </div>
-        </div>
-    </div>
-
-    <div class="panel mb-4">
-        <div class="panel-header d-flex justify-space-between align-center">
-            <span>Transformaciones</span>
-            <SfButton CssClass="e-small" OnClick="AgregarTransform">+ Agregar transformacion</SfButton>
-        </div>
-        <div class="pa-4">
-            @if (_form.Transforms.Count == 0)
-            {
-                <div class="texto-secundario">Sin transformaciones. El origen se escribe tal cual en la tabla destino.</div>
-            }
-            @for (var i = 0; i < _form.Transforms.Count; i++)
-            {
-                var t = _form.Transforms[i];
-                var idx = i;
-                <div class="panel pa-3 mb-3">
-                    <div class="d-flex justify-space-between align-center mb-2">
-                        <strong>Paso @(idx + 1)</strong>
-                        <span class="d-flex gap-1">
-                            <SfButton CssClass="e-small" Disabled="@(idx == 0)" OnClick="@(() => Subir(t))">▲</SfButton>
-                            <SfButton CssClass="e-small" Disabled="@(idx == _form.Transforms.Count - 1)" OnClick="@(() => Bajar(t))">▼</SfButton>
-                            <SfButton CssClass="e-small e-danger e-outline" OnClick="@(() => QuitarTransform(t))">Quitar</SfButton>
-                        </span>
-                    </div>
-                    <div class="mb-2">
-                        <SfTextBox Placeholder="Nombre del paso" FloatLabelType="FloatLabelType.Always" @bind-Value="t.Nombre" />
-                    </div>
-                    <KeyValueEditor Items="t.Rename" Titulo="Rename (renombrar columnas)" ClaveLabel="Columna origen" ValorLabel="Nuevo nombre" />
-                    <KeyValueEditor Items="t.Cast" Titulo="Cast (convertir tipos)" ClaveLabel="Columna" ValorLabel="Tipo (int/long/decimal/double/bool/date/string)" />
-                    <KeyValueEditor Items="t.Computed" Titulo="Computed (columnas calculadas)" ClaveLabel="Nueva columna" ValorLabel="Expresion (NCalc)" />
-                    <div class="mb-1">
-                        <SfTextBox Placeholder="Filter (expresion booleana NCalc, opcional)" FloatLabelType="FloatLabelType.Always" @bind-Value="t.Filter" />
-                    </div>
+                    @if (_form.Programacion != 0)
+                    {
+                        <div class="flex-grow-1 mb-3">
+                            <SfTextBox Placeholder="Hora del dia (HH:mm)" FloatLabelType="FloatLabelType.Always" @bind-Value="_form.HoraDelDia" />
+                        </div>
+                    }
+                    @if (_form.Programacion == 2)
+                    {
+                        <div class="flex-grow-1 mb-3">
+                            <SfDropDownList TValue="int" TItem="Opcion" DataSource="_diasSemana" @bind-Value="_form.DiaDeLaSemana"
+                                            Placeholder="Dia de la semana" FloatLabelType="FloatLabelType.Always">
+                                <DropDownListFieldSettings Value="Valor" Text="Texto"></DropDownListFieldSettings>
+                            </SfDropDownList>
+                        </div>
+                    }
+                    @if (_form.Programacion == 3)
+                    {
+                        <div class="flex-grow-1 mb-3">
+                            <label class="texto-caption texto-secundario">Dia del mes (1-28)</label>
+                            <SfNumericTextBox TValue="int" @bind-Value="_form.DiaDelMes" Min="1" Max="28"></SfNumericTextBox>
+                        </div>
+                    }
                 </div>
-            }
+            </div>
         </div>
-    </div>
+    }
 
-    <div class="d-flex gap-2 mb-8">
-        <SfButton CssClass="e-primary" OnClick="Guardar" Disabled="_guardando">
-            @(_guardando ? "Guardando..." : "Guardar")
-        </SfButton>
+    <div class="d-flex gap-2 mb-8 align-center">
+        <SfButton CssClass="e-flat" OnClick="Atras" Disabled="@(_pasoActivo == 1)">← Atras</SfButton>
+        @if (_pasoActivo < 3)
+        {
+            <SfButton CssClass="e-primary" OnClick="Siguiente" Disabled="@(!PuedeAvanzar)">Siguiente →</SfButton>
+            @if (_pasoActivo == 1 && !PuedeAvanzar)
+            {
+                <span class="texto-caption texto-secundario">Trae las columnas para continuar.</span>
+            }
+        }
+        else
+        {
+            <SfButton CssClass="e-primary" OnClick="Guardar" Disabled="_guardando">
+                @(_guardando ? "Guardando..." : "Guardar")
+            </SfButton>
+        }
         <SfButton CssClass="e-flat" OnClick="@(() => Nav.NavigateTo("/pipelines"))">Cancelar</SfButton>
     </div>
 }
@@ -219,6 +270,30 @@ else
     private bool _guardando;
     private string? _error;
     private string? _columnasMsg;
+
+    private int _pasoActivo = 1;
+
+    private bool Editando => Id is not null;
+
+    // Gates: P1 requiere columnas traidas; P2 requiere destino + (si Reemplazar) al menos una clave.
+    private bool GateP1 => _form.EsquemaOrigen.Count > 0;
+    private bool GateP2 => !string.IsNullOrWhiteSpace(_form.TablaDestino)
+        && (_form.ModoEscritura != 2 || _form.ColumnasClave.Count > 0);
+
+    // En modo edicion todos los pasos son navegables (el pipeline ya es valido).
+    private bool PasoHabilitado(int n) => Editando || n switch
+    {
+        1 => true,
+        2 => GateP1,
+        3 => GateP1 && GateP2,
+        _ => false
+    };
+
+    private bool PuedeAvanzar => Editando || _pasoActivo switch { 1 => GateP1, 2 => GateP2, _ => true };
+
+    private void IrAPaso(int n) { if (PasoHabilitado(n)) _pasoActivo = n; }
+    private void Atras() { if (_pasoActivo > 1) _pasoActivo--; }
+    private void Siguiente() { if (_pasoActivo < 3 && PuedeAvanzar) _pasoActivo++; }
 
     protected override async Task OnInitializedAsync()
     {
