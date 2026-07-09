@@ -2,6 +2,10 @@
 
 <div class="mb-3">
     <label class="texto-body2" style="font-weight:600;">@Titulo</label>
+    @if (!string.IsNullOrEmpty(Descripcion))
+    {
+        <div class="texto-caption texto-secundario mb-1">@Descripcion</div>
+    }
 
     @if (Items.Count == 0)
     {
@@ -12,10 +16,26 @@
     {
         <div class="d-flex gap-2 mb-1 align-center">
             <div style="flex:1;">
-                <SfTextBox Placeholder="@ClaveLabel" @bind-Value="kv.Clave" />
+                @if (ClaveOpciones is not null)
+                {
+                    <SfComboBox TValue="string" TItem="string" DataSource="ClaveOpciones" @bind-Value="kv.Clave"
+                                Placeholder="@ClaveLabel" AllowCustom="true" AllowFiltering="true" />
+                }
+                else
+                {
+                    <SfTextBox Placeholder="@ClaveLabel" @bind-Value="kv.Clave" />
+                }
             </div>
             <div style="flex:1;">
-                <SfTextBox Placeholder="@ValorLabel" @bind-Value="kv.Valor" />
+                @if (ValorOpciones is not null)
+                {
+                    <SfComboBox TValue="string" TItem="string" DataSource="ValorOpciones" @bind-Value="kv.Valor"
+                                Placeholder="@ValorLabel" AllowCustom="false" />
+                }
+                else
+                {
+                    <SfTextBox Placeholder="@ValorLabel" @bind-Value="kv.Valor" />
+                }
             </div>
             <SfButton CssClass="e-small e-danger e-outline" OnClick="@(() => Quitar(kv))" aria-label="Quitar">✕</SfButton>
         </div>
@@ -27,8 +47,11 @@
 @code {
     [Parameter] public List<KV> Items { get; set; } = new();
     [Parameter] public string Titulo { get; set; } = "";
+    [Parameter] public string? Descripcion { get; set; }
     [Parameter] public string ClaveLabel { get; set; } = "Clave";
     [Parameter] public string ValorLabel { get; set; } = "Valor";
+    [Parameter] public List<string>? ClaveOpciones { get; set; }
+    [Parameter] public List<string>? ValorOpciones { get; set; }
 
     private void Agregar() => Items.Add(new KV());
     private void Quitar(KV kv) => Items.Remove(kv);
