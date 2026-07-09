@@ -140,22 +140,37 @@ else
                     var t = _form.Transforms[i];
                     var idx = i;
                     <div class="panel pa-3 mb-3">
-                        <div class="d-flex justify-space-between align-center mb-2">
-                            <strong>Paso @(idx + 1)</strong>
+                        <div class="d-flex justify-space-between align-center mb-1">
+                            <strong>Bloque de transformacion @(idx + 1)</strong>
                             <span class="d-flex gap-1">
                                 <SfButton CssClass="e-small" Disabled="@(idx == 0)" OnClick="@(() => Subir(t))">▲</SfButton>
                                 <SfButton CssClass="e-small" Disabled="@(idx == _form.Transforms.Count - 1)" OnClick="@(() => Bajar(t))">▼</SfButton>
                                 <SfButton CssClass="e-small e-danger e-outline" OnClick="@(() => QuitarTransform(t))">Quitar</SfButton>
                             </span>
                         </div>
-                        <div class="mb-2">
-                            <SfTextBox Placeholder="Nombre del paso" FloatLabelType="FloatLabelType.Always" @bind-Value="t.Nombre" />
+                        <div class="texto-caption texto-secundario mb-3">Orden: renombrar → convertir tipo → calcular → filtrar</div>
+                        <div class="mb-3">
+                            <SfTextBox Placeholder="Nombre del bloque" FloatLabelType="FloatLabelType.Always" @bind-Value="t.Nombre" />
                         </div>
-                        <KeyValueEditor Items="t.Rename" Titulo="Rename (renombrar columnas)" ClaveLabel="Columna origen" ValorLabel="Nuevo nombre" />
-                        <KeyValueEditor Items="t.Cast" Titulo="Cast (convertir tipos)" ClaveLabel="Columna" ValorLabel="Tipo (int/long/decimal/double/bool/date/string)" />
-                        <KeyValueEditor Items="t.Computed" Titulo="Computed (columnas calculadas)" ClaveLabel="Nueva columna" ValorLabel="Expresion (NCalc)" />
-                        <div class="mb-1">
-                            <SfTextBox Placeholder="Filter (expresion booleana NCalc, opcional)" FloatLabelType="FloatLabelType.Always" @bind-Value="t.Filter" />
+                        <KeyValueEditor Items="t.Rename" Titulo="Renombrar columnas" Descripcion="Cambia el nombre de una columna."
+                                        ClaveLabel="Columna" ValorLabel="Nuevo nombre" ClaveOpciones="NombresColumnas" />
+                        <KeyValueEditor Items="t.Cast" Titulo="Convertir tipo" Descripcion="Convierte el valor de una columna al tipo elegido."
+                                        ClaveLabel="Columna" ValorLabel="Tipo" ClaveOpciones="NombresColumnas" ValorOpciones="_tiposCast" />
+                        <KeyValueEditor Items="t.Computed" Titulo="Columna calculada" Descripcion="Crea una columna nueva con una expresion (ej. precio * 1.21)."
+                                        ClaveLabel="Nueva columna" ValorLabel="Expresion" />
+                        <div class="mb-2">
+                            <label class="texto-body2" style="font-weight:600;">Filtrar filas</label>
+                            <div class="texto-caption texto-secundario mb-1">Solo pasan las filas donde la expresion es verdadera (ej. monto &gt; 0).</div>
+                            <SfTextBox Placeholder="Expresion booleana (opcional)" @bind-Value="t.Filter" />
+                        </div>
+                        <div class="pa-2 mb-1" style="border:0.5px solid #d0d0d0;border-radius:6px;">
+                            <div class="texto-caption texto-secundario">
+                                <strong>Sintaxis (NCalc):</strong>
+                                operadores <code>+ - * / &gt; &lt; == != and or not</code> ·
+                                condicional <code>if(cond, a, b)</code> ·
+                                funciones <code>Round, Abs, Max, Min, Floor, Ceiling</code>.
+                                <a href="https://github.com/ncalc/ncalc/wiki/Functions" target="_blank" rel="noopener">Ver funciones</a>
+                            </div>
                         </div>
                     </div>
                 }
@@ -263,6 +278,7 @@ else
         new(0, "Domingo"), new(1, "Lunes"), new(2, "Martes"), new(3, "Miercoles"),
         new(4, "Jueves"), new(5, "Viernes"), new(6, "Sabado")
     };
+    private readonly List<string> _tiposCast = new() { "int", "long", "decimal", "double", "bool", "date", "string" };
 
     private List<DataSourceVista> _datasources = new();
     private PipelineForm _form = new();
