@@ -80,7 +80,8 @@ public sealed class ColumnMapTransform : ITransform
         foreach (var (col, tipo) in _cast)
         {
             if (!fila.TryGetValue(col, out var val) || val is null) continue;
-            fila[col] = Convertir(val, tipo);
+            // Fecha: 03/09/2026 - TAREA: 00014 - Linea: 1 - Conversion extraida a TipoValorConverter (compartida con FileSourceBase).
+            fila[col] = TipoValorConverter.Convertir(val, tipo);
         }
     }
 
@@ -102,16 +103,4 @@ public sealed class ColumnMapTransform : ITransform
         var r = Evaluar(expr, fila);
         return r is bool b && b;
     }
-
-    private static object? Convertir(object val, string tipo) => tipo.ToLowerInvariant() switch
-    {
-        "int"     => Convert.ToInt32(val, CultureInfo.InvariantCulture),
-        "long"    => Convert.ToInt64(val, CultureInfo.InvariantCulture),
-        "decimal" => Convert.ToDecimal(val, CultureInfo.InvariantCulture),
-        "double"  => Convert.ToDouble(val, CultureInfo.InvariantCulture),
-        "bool"    => Convert.ToBoolean(val, CultureInfo.InvariantCulture),
-        "date"    => DateTime.Parse(Convert.ToString(val, CultureInfo.InvariantCulture)!, CultureInfo.InvariantCulture),
-        "string"  => Convert.ToString(val, CultureInfo.InvariantCulture),
-        _ => throw new NotSupportedException($"Tipo de cast no soportado: '{tipo}'.")
-    };
 }
