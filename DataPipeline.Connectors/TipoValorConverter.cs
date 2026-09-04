@@ -5,7 +5,7 @@ using System.Globalization;
 namespace DataPipeline.Connectors;
 
 /// <summary>Convierte un valor crudo a uno de los 7 tipos soportados por el cast de Paso 3.</summary>
-internal static class TipoValorConverter
+public static class TipoValorConverter
 {
     public static object? Convertir(object val, string tipo) => tipo.ToLowerInvariant() switch
     {

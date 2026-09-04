@@ -112,10 +112,10 @@ public class ColumnMapTransformTests
             filter: "importe >"));
     }
 
+    // Fecha: 03/09/2026 - TAREA: 00014 - Linea: 1 - Regresion: el cast de Paso 3 sigue funcionando igual despues de extraer la conversion.
     [Fact]
     public void TipoValorConverter_es_usado_por_el_cast_existente()
     {
-        // Regresion: el cast de Paso 3 sigue funcionando igual despues de extraer la conversion.
         Assert.Equal(42, DataPipeline.Connectors.TipoValorConverter.Convertir("42", "int"));
         Assert.Equal(3.5m, DataPipeline.Connectors.TipoValorConverter.Convertir("3.5", "decimal"));
         Assert.Equal(new DateTime(2026, 1, 5), DataPipeline.Connectors.TipoValorConverter.Convertir("2026-01-05", "date"));
