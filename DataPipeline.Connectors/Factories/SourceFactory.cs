@@ -20,6 +20,15 @@ public sealed class SourceFactory : ISourceFactory
                 LeerString(step, "sql"),
                 step.Configuracion.TryGetValue("connectionStringEncrypted", out var e)
                     && e.ValueKind == JsonValueKind.True),
+            // Fecha: 03/09/2026 - TAREA: 00014 - Linea: 1 - Origenes de archivo (Csv/Xlsx).
+            "CsvSource" => new CsvSource(
+                LeerString(step, "rutaCarpeta"),
+                LeerStringOpcional(step, "patronArchivo"),
+                LeerStringOpcional(step, "columnaWatermark"),
+                LeerStringOpcional(step, "tipoColumnaWatermark"),
+                LeerStringOpcional(step, "separador"),
+                LeerStringOpcional(step, "encoding"),
+                LeerBoolOpcional(step, "tieneEncabezado") ?? true),
             _ => throw new NotSupportedException($"Conector de origen no soportado: '{step.Conector}'.")
         };
     }
@@ -33,4 +42,12 @@ public sealed class SourceFactory : ISourceFactory
         }
         throw new ArgumentException($"El origen '{step.Nombre}' requiere la config string '{clave}'.", nameof(step));
     }
+
+    private static string? LeerStringOpcional(StepDefinition step, string clave) =>
+        step.Configuracion.TryGetValue(clave, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() : null;
+
+    private static bool? LeerBoolOpcional(StepDefinition step, string clave) =>
+        step.Configuracion.TryGetValue(clave, out var v) &&
+        (v.ValueKind == JsonValueKind.True || v.ValueKind == JsonValueKind.False)
+            ? v.GetBoolean() : (bool?)null;
 }

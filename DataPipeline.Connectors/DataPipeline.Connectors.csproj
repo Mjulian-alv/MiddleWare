@@ -4,10 +4,13 @@
     <ProjectReference Include="..\DataPipeline.Core\DataPipeline.Core.csproj" />
   </ItemGroup>
 
+  <!-- Fecha: 03/09/2026 - TAREA: 00014 - Linea: 1 - CsvHelper (CsvSource) + ClosedXML (XlsxSource, Task 5). -->
   <ItemGroup>
     <PackageReference Include="Microsoft.Data.SqlClient" Version="7.0.1" />
     <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.8" />
     <PackageReference Include="NCalc" Version="6.2.0" />
+    <PackageReference Include="CsvHelper" Version="33.0.1" />
+    <PackageReference Include="ClosedXML" Version="0.104.2" />
   </ItemGroup>
 
   <PropertyGroup>

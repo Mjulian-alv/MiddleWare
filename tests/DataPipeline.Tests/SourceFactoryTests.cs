@@ -28,6 +28,22 @@ public class SourceFactoryTests
         Assert.IsType<SqlServerSource>(source);
     }
 
+    // Fecha: 03/09/2026 - TAREA: 00014 - Linea: 1 - CsvSource resuelto por SourceFactory.
+    [Fact]
+    public void Crea_un_CsvSource_para_el_tipo_correcto()
+    {
+        var factory = new SourceFactory();
+        var step = new StepDefinition
+        {
+            Nombre = "leer", Tipo = TipoPaso.Origen, Conector = "CsvSource",
+            Configuracion = new() { ["rutaCarpeta"] = S(@"C:\exports") }
+        };
+
+        var source = factory.Create(step);
+
+        Assert.IsType<CsvSource>(source);
+    }
+
     [Fact]
     public void Falta_config_requerida_lanza()
     {
