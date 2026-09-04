@@ -63,7 +63,7 @@ public class MetadataSchemaInitializerTests
             {
                 Id = Guid.NewGuid(), Nombre = "ds1", Tipo = TipoDataSource.SqlServer,
                 ConnectionString = "x", Username = "u", Password = "p",
-                BaseUrl = "b", FilePath = "f", Activo = true,
+                BaseUrl = "b", Activo = true,
                 CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow
             });
             ctx.Corridas.Add(new PipelineRun

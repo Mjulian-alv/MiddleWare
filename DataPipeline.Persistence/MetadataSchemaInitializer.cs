@@ -14,6 +14,9 @@ public static class MetadataSchemaInitializer
 {
     private static readonly string[] Sentencias =
     {
+        // Fecha: 03/09/2026 - TAREA: 00014 - Linea: 1 - Origenes de archivo (Csv/Xlsx): 6 columnas
+        // nuevas en Origenes + ColumnaWatermarkTipo en Pipelines. FilePath queda en la tabla (columna
+        // huerfana inofensiva) para no tocar bases existentes; ya no se usa desde el C#.
         """
         CREATE TABLE IF NOT EXISTS "Origenes" (
             "Id"               TEXT    NOT NULL CONSTRAINT "PK_Origenes" PRIMARY KEY,
@@ -24,6 +27,12 @@ public static class MetadataSchemaInitializer
             "Password"         TEXT    NULL,
             "BaseUrl"          TEXT    NULL,
             "FilePath"         TEXT    NULL,
+            "RutaCarpeta"      TEXT    NULL,
+            "PatronArchivo"    TEXT    NULL,
+            "Separador"        TEXT    NULL,
+            "Encoding"         TEXT    NULL,
+            "TieneEncabezado"  INTEGER NOT NULL DEFAULT 1,
+            "HojaExcel"        TEXT    NULL,
             "Activo"           INTEGER NOT NULL,
             "CreatedAt"        TEXT    NOT NULL,
             "UpdatedAt"        TEXT    NULL
@@ -49,6 +58,7 @@ public static class MetadataSchemaInitializer
             "EsquemaOrigen"    TEXT    NOT NULL DEFAULT '[]',
             "ColumnaWatermark" TEXT    NULL,
             "UltimoWatermark"  TEXT    NULL,
+            "ColumnaWatermarkTipo" TEXT NULL,
             "FilasPorLote"     INTEGER NOT NULL
         )
         """,
@@ -74,6 +84,13 @@ public static class MetadataSchemaInitializer
         """ALTER TABLE "Pipelines" ADD COLUMN "EsquemaOrigen"    TEXT NOT NULL DEFAULT '[]'""",
         """ALTER TABLE "Pipelines" ADD COLUMN "ColumnaWatermark" TEXT NULL""",
         """ALTER TABLE "Pipelines" ADD COLUMN "UltimoWatermark"  TEXT NULL""",
+        """ALTER TABLE "Origenes"  ADD COLUMN "RutaCarpeta"          TEXT    NULL""",
+        """ALTER TABLE "Origenes"  ADD COLUMN "PatronArchivo"        TEXT    NULL""",
+        """ALTER TABLE "Origenes"  ADD COLUMN "Separador"            TEXT    NULL""",
+        """ALTER TABLE "Origenes"  ADD COLUMN "Encoding"             TEXT    NULL""",
+        """ALTER TABLE "Origenes"  ADD COLUMN "TieneEncabezado"      INTEGER NOT NULL DEFAULT 1""",
+        """ALTER TABLE "Origenes"  ADD COLUMN "HojaExcel"            TEXT    NULL""",
+        """ALTER TABLE "Pipelines" ADD COLUMN "ColumnaWatermarkTipo" TEXT    NULL""",
     };
 
     public static async Task EnsureAsync(DbConnection connection, ILogger? logger, CancellationToken ct = default)

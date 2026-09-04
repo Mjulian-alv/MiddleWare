@@ -160,4 +160,19 @@ public class RepositoriosTests
         Assert.Null(leido);
         Assert.False(inexistente);
     }
+
+    [Fact]
+    public async Task Pipeline_persiste_ColumnaWatermarkTipo()
+    {
+        using var ctx = NuevoCtx();
+        var store = new EfPipelineStore(ctx);
+        var def = Def("con-tipo-watermark", null);
+        def.ColumnaWatermark = "fecha_mod";
+        def.ColumnaWatermarkTipo = "date";
+        await store.UpsertAsync(def, CancellationToken.None);
+
+        var leido = await store.GetByNombreAsync("con-tipo-watermark", CancellationToken.None);
+
+        Assert.Equal("date", leido!.ColumnaWatermarkTipo);
+    }
 }

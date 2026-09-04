@@ -32,5 +32,11 @@ public sealed class PipelineDefinition
     /// <summary>Ultimo maximo visto de <see cref="ColumnaWatermark"/> (persistido tras cada corrida exitosa).</summary>
     public string? UltimoWatermark { get; set; }
 
+    // Fecha: 03/09/2026 - TAREA: 00014 - Linea: 1 - Origenes de archivo (Csv/Xlsx): el archivo no
+    // tiene tipos como SQL Server; sin esto, comparar una fecha o un numero como texto compara mal
+    // ("9" > "10"). Uno de int/long/decimal/double/bool/date/string (mismos 7 valores que el cast
+    // de Paso 3). Ignorado para SqlServer (ADO.NET ya entrega valores tipados).
+    public string? ColumnaWatermarkTipo { get; set; }
+
     public int FilasPorLote { get; set; } = 5_000;
 }
