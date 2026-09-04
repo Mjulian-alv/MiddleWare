@@ -27,6 +27,10 @@ public class DataSourcesColumnasTests
     {
         public Task<ConnectionResult> ProbarSqlServerAsync(string cs, CancellationToken ct) =>
             Task.FromResult(new ConnectionResult(true, null));
+
+        // Fecha: 03/09/2026 - TAREA: 00015 - Linea: 1 - implementacion minima para no romper el fake.
+        public Task<ConnectionResult> ProbarArchivoAsync(string rutaCarpeta, CancellationToken ct) =>
+            Task.FromResult(new ConnectionResult(true, null));
     }
 
     private sealed class FakeDiscoverer : ISchemaDiscoverer
@@ -34,6 +38,10 @@ public class DataSourcesColumnasTests
         private readonly SchemaResult _r;
         public FakeDiscoverer(SchemaResult r) => _r = r;
         public Task<SchemaResult> DescubrirSqlServerAsync(string cs, string sql, CancellationToken ct) =>
+            Task.FromResult(_r);
+
+        // Fecha: 03/09/2026 - TAREA: 00015 - Linea: 1 - implementacion minima para no romper el fake.
+        public Task<SchemaResult> DescubrirArchivoAsync(DataSource ds, CancellationToken ct) =>
             Task.FromResult(_r);
     }
 

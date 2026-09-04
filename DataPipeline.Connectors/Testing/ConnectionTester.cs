@@ -19,4 +19,29 @@ public sealed class ConnectionTester : IConnectionTester
             return new ConnectionResult(false, ex.Message);
         }
     }
+
+    // Fecha: 03/09/2026 - TAREA: 00015 - Linea: 1 - Origenes de archivo: valida que la carpeta
+    // exista y sea escribible (ahi se crea \procesados al correr el pipeline).
+    public async Task<ConnectionResult> ProbarArchivoAsync(string rutaCarpeta, CancellationToken ct)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(rutaCarpeta))
+                return new ConnectionResult(false, "La ruta de la carpeta esta vacia.");
+            if (!Directory.Exists(rutaCarpeta))
+                return new ConnectionResult(false, $"No se encontro la carpeta: {rutaCarpeta}");
+
+            var carpetaProcesados = Path.Combine(rutaCarpeta, "procesados");
+            Directory.CreateDirectory(carpetaProcesados);
+            var archivoPrueba = Path.Combine(carpetaProcesados, $".probar_{Guid.NewGuid():N}.tmp");
+            await File.WriteAllTextAsync(archivoPrueba, "", ct);
+            File.Delete(archivoPrueba);
+
+            return new ConnectionResult(true, null);
+        }
+        catch (Exception ex)
+        {
+            return new ConnectionResult(false, ex.Message);
+        }
+    }
 }

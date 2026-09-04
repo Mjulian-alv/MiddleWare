@@ -1,3 +1,5 @@
+// Fecha: 03/09/2026 - TAREA: 00015 - Linea: 1 - Descubrimiento de columnas para origenes de archivo.
+using DataPipeline.Core.DataSources;
 using DataPipeline.Core.Pipelines;
 
 namespace DataPipeline.Core.Abstractions;
@@ -9,4 +11,7 @@ public sealed record SchemaResult(bool Ok, IReadOnlyList<ColumnaOrigen>? Columna
 public interface ISchemaDiscoverer
 {
     Task<SchemaResult> DescubrirSqlServerAsync(string connectionString, string sql, CancellationToken ct);
+
+    /// <summary>Csv/Xlsx: lee el encabezado del archivo sin procesar mas nuevo de <paramref name="ds"/>.</summary>
+    Task<SchemaResult> DescubrirArchivoAsync(DataSource ds, CancellationToken ct);
 }
