@@ -29,6 +29,13 @@ public sealed class SourceFactory : ISourceFactory
                 LeerStringOpcional(step, "separador"),
                 LeerStringOpcional(step, "encoding"),
                 LeerBoolOpcional(step, "tieneEncabezado") ?? true),
+            // Fecha: 03/09/2026 - TAREA: 00015 - Linea: 1 - XlsxSource resuelto por SourceFactory.
+            "XlsxSource" => new XlsxSource(
+                LeerString(step, "rutaCarpeta"),
+                LeerStringOpcional(step, "patronArchivo"),
+                LeerStringOpcional(step, "columnaWatermark"),
+                LeerStringOpcional(step, "tipoColumnaWatermark"),
+                LeerStringOpcional(step, "hojaExcel")),
             _ => throw new NotSupportedException($"Conector de origen no soportado: '{step.Conector}'.")
         };
     }

@@ -44,6 +44,22 @@ public class SourceFactoryTests
         Assert.IsType<CsvSource>(source);
     }
 
+    // Fecha: 03/09/2026 - TAREA: 00015 - Linea: 1 - XlsxSource resuelto por SourceFactory.
+    [Fact]
+    public void Crea_un_XlsxSource_para_el_tipo_correcto()
+    {
+        var factory = new SourceFactory();
+        var step = new StepDefinition
+        {
+            Nombre = "leer", Tipo = TipoPaso.Origen, Conector = "XlsxSource",
+            Configuracion = new() { ["rutaCarpeta"] = S(@"C:\exports") }
+        };
+
+        var source = factory.Create(step);
+
+        Assert.IsType<XlsxSource>(source);
+    }
+
     [Fact]
     public void Falta_config_requerida_lanza()
     {
