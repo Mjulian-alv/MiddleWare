@@ -64,32 +64,71 @@
                 </SfDropDownList>
             </div>
 
-            <div class="d-flex mb-1" style="justify-content:flex-end;">
-                <SfButton CssClass="e-flat e-small" OnClick="@(() => _mostrarSecretos = !_mostrarSecretos)">
-                    @(_mostrarSecretos ? "Ocultar secretos" : "Mostrar secretos")
-                </SfButton>
-            </div>
-
-            <div class="mb-2">
-                <SfTextBox Placeholder="@(_form.Id == Guid.Empty ? "Connection string *" : "Connection string")"
-                           FloatLabelType="FloatLabelType.Always"
-                           Type="@(_mostrarSecretos ? InputType.Text : InputType.Password)"
-                           @bind-Value="_form.ConnectionString" />
-            </div>
-            <div class="mb-2">
-                <SfTextBox Placeholder="Usuario" FloatLabelType="FloatLabelType.Always"
-                           Type="@(_mostrarSecretos ? InputType.Text : InputType.Password)"
-                           @bind-Value="_form.Username" />
-            </div>
-            <div class="mb-2">
-                <SfTextBox Placeholder="Contrasena" FloatLabelType="FloatLabelType.Always"
-                           Type="@(_mostrarSecretos ? InputType.Text : InputType.Password)"
-                           @bind-Value="_form.Password" />
-            </div>
-
-            @if (_form.Id != Guid.Empty)
+            @* Fecha: 03/09/2026 - TAREA: 00015 - Linea: 1 - Origenes de archivo (Csv/Xlsx): campos condicionales por Tipo. *@
+            @if (_form.Tipo == 1 || _form.Tipo == 2)
             {
-                <small class="texto-secundario d-block mb-2">Deja los secretos vacios para conservar los actuales.</small>
+                <div class="mb-2">
+                    <SfTextBox Placeholder="Carpeta *" FloatLabelType="FloatLabelType.Always" @bind-Value="_form.RutaCarpeta" />
+                </div>
+                <div class="mb-2">
+                    <SfTextBox Placeholder="@(_form.Tipo == 1 ? "Patron de archivo (ej. VENTAS_*.csv)" : "Patron de archivo (ej. VENTAS_*.xlsx)")"
+                               FloatLabelType="FloatLabelType.Always" @bind-Value="_form.PatronArchivo" />
+                </div>
+            }
+            @if (_form.Tipo == 1)
+            {
+                <div class="mb-2">
+                    <SfDropDownList TValue="string" TItem="OpcionTexto" DataSource="_separadores" @bind-Value="_form.Separador"
+                                    Placeholder="Separador" FloatLabelType="FloatLabelType.Always">
+                        <DropDownListFieldSettings Value="Valor" Text="Texto"></DropDownListFieldSettings>
+                    </SfDropDownList>
+                </div>
+                <div class="mb-2">
+                    <SfDropDownList TValue="string" TItem="OpcionTexto" DataSource="_encodings" @bind-Value="_form.Encoding"
+                                    Placeholder="Encoding" FloatLabelType="FloatLabelType.Always">
+                        <DropDownListFieldSettings Value="Valor" Text="Texto"></DropDownListFieldSettings>
+                    </SfDropDownList>
+                </div>
+                <div class="mb-2">
+                    <SfCheckBox @bind-Checked="_form.TieneEncabezado" Label="Tiene encabezado"></SfCheckBox>
+                </div>
+            }
+            @if (_form.Tipo == 2)
+            {
+                <div class="mb-2">
+                    <SfTextBox Placeholder="Hoja (vacio = primera)" FloatLabelType="FloatLabelType.Always" @bind-Value="_form.HojaExcel" />
+                </div>
+            }
+
+            @if (_form.Tipo == 0)
+            {
+                <div class="d-flex mb-1" style="justify-content:flex-end;">
+                    <SfButton CssClass="e-flat e-small" OnClick="@(() => _mostrarSecretos = !_mostrarSecretos)">
+                        @(_mostrarSecretos ? "Ocultar secretos" : "Mostrar secretos")
+                    </SfButton>
+                </div>
+
+                <div class="mb-2">
+                    <SfTextBox Placeholder="@(_form.Id == Guid.Empty ? "Connection string *" : "Connection string")"
+                               FloatLabelType="FloatLabelType.Always"
+                               Type="@(_mostrarSecretos ? InputType.Text : InputType.Password)"
+                               @bind-Value="_form.ConnectionString" />
+                </div>
+                <div class="mb-2">
+                    <SfTextBox Placeholder="Usuario" FloatLabelType="FloatLabelType.Always"
+                               Type="@(_mostrarSecretos ? InputType.Text : InputType.Password)"
+                               @bind-Value="_form.Username" />
+                </div>
+                <div class="mb-2">
+                    <SfTextBox Placeholder="Contrasena" FloatLabelType="FloatLabelType.Always"
+                               Type="@(_mostrarSecretos ? InputType.Text : InputType.Password)"
+                               @bind-Value="_form.Password" />
+                </div>
+
+                @if (_form.Id != Guid.Empty)
+                {
+                    <small class="texto-secundario d-block mb-2">Deja los secretos vacios para conservar los actuales.</small>
+                }
             }
 
             <div class="mb-2">
@@ -126,7 +165,12 @@
 
 @code {
     private sealed record OpcionTipo(int Valor, string Texto);
-    private readonly List<OpcionTipo> _tipos = new() { new(0, "SqlServer") };
+    // Fecha: 03/09/2026 - TAREA: 00015 - Linea: 1 - Origenes de archivo: Csv/Xlsx (mismo orden que TipoDataSource).
+    private readonly List<OpcionTipo> _tipos = new() { new(0, "SqlServer"), new(1, "Csv"), new(2, "Xlsx") };
+
+    private sealed record OpcionTexto(string Valor, string Texto);
+    private readonly List<OpcionTexto> _separadores = new() { new(",", ","), new(";", ";"), new("\t", "Tab") };
+    private readonly List<OpcionTexto> _encodings = new() { new("UTF-8", "UTF-8"), new("Windows-1252", "Windows-1252 (ANSI/Latin1)") };
 
     private sealed class FormModel
     {
@@ -136,6 +180,13 @@
         public string? ConnectionString { get; set; }
         public string? Username { get; set; }
         public string? Password { get; set; }
+        // Fecha: 03/09/2026 - TAREA: 00015 - Linea: 1 - Origenes de archivo (Csv/Xlsx).
+        public string? RutaCarpeta { get; set; }
+        public string? PatronArchivo { get; set; }
+        public string Separador { get; set; } = ",";
+        public string Encoding { get; set; } = "UTF-8";
+        public bool TieneEncabezado { get; set; } = true;
+        public string? HojaExcel { get; set; }
         public bool Activo { get; set; } = true;
     }
 
@@ -156,7 +207,7 @@
     private string? _feedback;
     private bool _feedbackOk;
 
-    private static string TipoTexto(int tipo) => tipo == 0 ? "SqlServer" : tipo.ToString();
+    private static string TipoTexto(int tipo) => tipo switch { 0 => "SqlServer", 1 => "Csv", 2 => "Xlsx", _ => tipo.ToString() };
 
     protected override async Task OnInitializedAsync() => await Recargar();
 
@@ -175,7 +226,14 @@
         var d = await Origenes.ObtenerPorIdAsync(id);
         if (d is null) { Mostrar(false, "No se encontro el origen."); return; }
         // Secretos NO se pre-cargan (la API no los devuelve); vacio = conservar al guardar.
-        _form = new FormModel { Id = d.Id, Nombre = d.Nombre, Tipo = d.Tipo, Activo = d.Activo };
+        _form = new FormModel
+        {
+            Id = d.Id, Nombre = d.Nombre, Tipo = d.Tipo, Activo = d.Activo,
+            RutaCarpeta = d.RutaCarpeta, PatronArchivo = d.PatronArchivo,
+            Separador = string.IsNullOrEmpty(d.Separador) ? "," : d.Separador,
+            Encoding = string.IsNullOrEmpty(d.Encoding) ? "UTF-8" : d.Encoding,
+            TieneEncabezado = d.TieneEncabezado, HojaExcel = d.HojaExcel
+        };
         _mostrarSecretos = false;
         _errorNombre = _errorForm = null;
         _formAbierto = true;
@@ -185,9 +243,14 @@
     {
         _errorNombre = _errorForm = null;
         if (string.IsNullOrWhiteSpace(_form.Nombre)) { _errorNombre = "El nombre es obligatorio."; return; }
-        if (_form.Id == Guid.Empty && string.IsNullOrWhiteSpace(_form.ConnectionString))
+        if (_form.Tipo == 0 && _form.Id == Guid.Empty && string.IsNullOrWhiteSpace(_form.ConnectionString))
         {
             _errorForm = "La connection string es obligatoria para un origen nuevo.";
+            return;
+        }
+        if (_form.Tipo != 0 && string.IsNullOrWhiteSpace(_form.RutaCarpeta))
+        {
+            _errorForm = "La carpeta es obligatoria.";
             return;
         }
 
@@ -195,7 +258,9 @@
         try
         {
             var dto = new DataSourceUpsert(_form.Id, _form.Nombre.Trim(), _form.Tipo,
-                _form.ConnectionString, _form.Username, _form.Password, null, null, _form.Activo);
+                _form.ConnectionString, _form.Username, _form.Password, null,
+                _form.RutaCarpeta, _form.PatronArchivo, _form.Separador, _form.Encoding,
+                _form.TieneEncabezado, _form.HojaExcel, _form.Activo);
             var ok = await Origenes.GuardarAsync(dto);
             if (ok)
             {

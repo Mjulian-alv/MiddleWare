@@ -3,13 +3,19 @@ using System.Text.Json;
 
 namespace DataPipeline.Admin.Services;
 
+// Fecha: 03/09/2026 - TAREA: 00015 - Linea: 1 - Origenes de archivo (Csv/Xlsx): campos de carpeta
+// en los DTOs (reemplazan FilePath, sin uso); TraerColumnasAsync no exige sql para archivo.
 /// <summary>Vista de un DataSource (sin secretos; calca el shape que devuelve la API).</summary>
 public sealed record DataSourceVista(Guid Id, string Nombre, int Tipo, bool Activo,
-    DateTime CreatedAt, DateTime? UpdatedAt, bool TieneConnectionString);
+    DateTime CreatedAt, DateTime? UpdatedAt, bool TieneConnectionString,
+    string? RutaCarpeta, string? PatronArchivo, string? Separador, string? Encoding,
+    bool TieneEncabezado, string? HojaExcel);
 
 /// <summary>Payload de alta/edicion (secretos en texto plano; vacio en edicion = conservar).</summary>
 public sealed record DataSourceUpsert(Guid Id, string Nombre, int Tipo, string? ConnectionString,
-    string? Username, string? Password, string? BaseUrl, string? FilePath, bool Activo);
+    string? Username, string? Password, string? BaseUrl,
+    string? RutaCarpeta, string? PatronArchivo, string? Separador, string? Encoding,
+    bool TieneEncabezado, string? HojaExcel, bool Activo);
 
 /// <summary>Resultado de probar la conexion.</summary>
 public sealed record ProbarResp(bool Ok, string? Error);
@@ -59,10 +65,10 @@ public class DataSourcesAdminService
             ?? new ProbarResp(false, "Respuesta vacia.");
     }
 
-    public async Task<List<ColumnaOrigenDto>?> TraerColumnasAsync(Guid id, string sql)
+    public async Task<List<ColumnaOrigenDto>?> TraerColumnasAsync(Guid id, string? sql)
     {
         var r = await _http.PostAsJsonAsync($"api/datasources/{id}/columnas", new { sql });
-        if (!r.IsSuccessStatusCode) return null; // null = error (SQL invalido, conexion, etc.)
+        if (!r.IsSuccessStatusCode) return null; // null = error (SQL invalido, carpeta sin archivos, etc.)
         return JsonSerializer.Deserialize<List<ColumnaOrigenDto>>(await r.Content.ReadAsStringAsync(), _json) ?? new();
     }
 }
