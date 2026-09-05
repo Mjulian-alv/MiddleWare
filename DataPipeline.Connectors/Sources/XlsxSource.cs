@@ -50,8 +50,29 @@ public sealed class XlsxSource : FileSourceBase
             var celdas = fila.Cells().ToList();
             var valores = new Dictionary<string, object?>(columnas.Count);
             for (int i = 0; i < columnas.Count; i++)
-                valores[columnas[i]] = i < celdas.Count ? celdas[i].Value.ToString() : null;
+                valores[columnas[i]] = i < celdas.Count ? ValorCelda(celdas[i]) : null;
             yield return new Record { Values = valores };
         }
+    }
+
+    // Fecha: 05/09/2026 - TAREA: 00015 - Linea: 1 - Revision final: se extrae el valor NATIVO de la
+    // celda (segun XLCellValue.Type) en vez de stringificarla con .Value.ToString(), que formatea
+    // Number/DateTime con la cultura de la maquina (ej. es-AR: "10.5" -> "10,5", una fecha -> dd/MM/yyyy).
+    // TipoValorConverter.Convertir reparsea con InvariantCulture: en una maquina no-en-US eso corrompia
+    // decimales en silencio ("10,5" leido como 105) y hacia explotar fechas con dia > 12. Con el valor
+    // nativo (double/DateTime/bool/TimeSpan/string), TipoValorConverter lo castea/reformatea siempre en
+    // InvariantCulture, sin pasar por el string localizado.
+    private static object? ValorCelda(IXLCell celda)
+    {
+        var valor = celda.Value;
+        return valor.Type switch
+        {
+            XLDataType.Blank => null,
+            XLDataType.Number => valor.GetNumber(),
+            XLDataType.DateTime => valor.GetDateTime(),
+            XLDataType.Boolean => valor.GetBoolean(),
+            XLDataType.TimeSpan => valor.GetTimeSpan(),
+            _ => valor.GetText()
+        };
     }
 }

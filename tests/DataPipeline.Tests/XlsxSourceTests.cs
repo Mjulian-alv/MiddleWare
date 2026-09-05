@@ -1,6 +1,7 @@
 // Fecha: 03/09/2026 - TAREA: 00015 - Linea: 1 - Tests de XlsxSource con libros reales generados por
 // ClosedXML (mismo patron de lectura que ExcelQueryExecutor de ConsultasGenericas: primera fila =
 // encabezado), agregando hoja nombrada y watermark.
+using System.Globalization;
 using ClosedXML.Excel;
 using DataPipeline.Connectors.Sources;
 using DataPipeline.Core.Records;
@@ -103,6 +104,73 @@ public class XlsxSourceTests
         var ctx = Ctx(new Dictionary<string, string> { ["watermark"] = "10.5" });
 
         var filas = await Drenar(source.ReadAsync(ctx, CancellationToken.None));
+
+        Assert.Single(filas);
+        Assert.Equal("2", filas[0].Values["id"]);
+    }
+
+    // Fecha: 05/09/2026 - TAREA: 00015 - Linea: 1 - Revision final (Hallazgo 1, Critico): estos dos
+    // tests usan celdas NUMERICAS/DateTime reales (no strings, a diferencia de los tests de arriba) y
+    // fuerzan CurrentCulture = es-AR, que es la combinacion que ninguna review por task detecto: todos
+    // los tests de XLSX existentes usaban celdas de texto, asi que .Value.ToString() con formato
+    // culture-dependiente nunca se disparaba. Sin el fix de XlsxSource (valor nativo de la celda en vez
+    // de ToString()), el primer test filtraba mal (10,5 -> 105) y el segundo tiraba FormatException.
+    private static async Task<T> ConCulturaEsAR<T>(Func<Task<T>> accion)
+    {
+        var hiloAnterior = System.Threading.Thread.CurrentThread.CurrentCulture;
+        var hiloAnteriorUi = System.Threading.Thread.CurrentThread.CurrentUICulture;
+        var esAr = new CultureInfo("es-AR");
+        System.Threading.Thread.CurrentThread.CurrentCulture = esAr;
+        System.Threading.Thread.CurrentThread.CurrentUICulture = esAr;
+        try { return await accion(); }
+        finally
+        {
+            System.Threading.Thread.CurrentThread.CurrentCulture = hiloAnterior;
+            System.Threading.Thread.CurrentThread.CurrentUICulture = hiloAnteriorUi;
+        }
+    }
+
+    [Fact]
+    public async Task Bajo_cultura_es_AR_una_celda_numerica_real_se_tipa_y_filtra_bien_como_decimal()
+    {
+        var carpeta = NuevaCarpeta();
+        var ruta = Path.Combine(carpeta, "ventas.xlsx");
+        using (var libro = new XLWorkbook())
+        {
+            var hoja = libro.Worksheets.Add("Datos");
+            hoja.Cell(1, 1).Value = "id"; hoja.Cell(1, 2).Value = "monto";
+            hoja.Cell(2, 1).Value = "1"; hoja.Cell(2, 2).Value = 10.5;   // celda NUMERICA real, no string
+            hoja.Cell(3, 1).Value = "2"; hoja.Cell(3, 2).Value = 20.5;
+            libro.SaveAs(ruta);
+        }
+        var source = new XlsxSource(carpeta, "*.xlsx", "monto", "decimal", null);
+        var ctx = Ctx(new Dictionary<string, string> { ["watermark"] = "10.5" });
+
+        var filas = await ConCulturaEsAR(() => Drenar(source.ReadAsync(ctx, CancellationToken.None)));
+
+        // Antes del fix: "10,5" (formateado con la cultura de la maquina) se reparseaba con
+        // InvariantCulture como 105, asi que las dos filas pasaban el filtro (105 > 10.5 y 20.5 > 10.5).
+        Assert.Single(filas);
+        Assert.Equal("2", filas[0].Values["id"]);
+    }
+
+    [Fact]
+    public async Task Bajo_cultura_es_AR_una_celda_de_fecha_real_con_dia_mayor_a_12_no_explota()
+    {
+        var carpeta = NuevaCarpeta();
+        var ruta = Path.Combine(carpeta, "ventas.xlsx");
+        using (var libro = new XLWorkbook())
+        {
+            var hoja = libro.Worksheets.Add("Datos");
+            hoja.Cell(1, 1).Value = "id"; hoja.Cell(1, 2).Value = "fecha";
+            hoja.Cell(2, 1).Value = "1"; hoja.Cell(2, 2).Value = new DateTime(2026, 9, 10); // dia <= 12
+            hoja.Cell(3, 1).Value = "2"; hoja.Cell(3, 2).Value = new DateTime(2026, 9, 20); // dia > 12: crasheaba antes del fix
+            libro.SaveAs(ruta);
+        }
+        var source = new XlsxSource(carpeta, "*.xlsx", "fecha", "date", null);
+        var ctx = Ctx(new Dictionary<string, string> { ["watermark"] = "2026-09-10T00:00:00.0000000" });
+
+        var filas = await ConCulturaEsAR(() => Drenar(source.ReadAsync(ctx, CancellationToken.None)));
 
         Assert.Single(filas);
         Assert.Equal("2", filas[0].Values["id"]);

@@ -52,7 +52,10 @@ public sealed class CsvSource : FileSourceBase
             return Enumerable.Range(1, csv.Parser.Count).Select(i => $"Col{i}").ToArray();
         }
 
-        csv.Read();
+        // Fecha: 05/09/2026 - TAREA: 00015 - Linea: 1 - Revision final: un archivo vacio hace que
+        // csv.Read() devuelva false; sin este guard, ReadHeader() tira ReaderException y el archivo
+        // nunca se mueve a \procesados (queda trabado, fallando en cada corrida siguiente).
+        if (!csv.Read()) return Array.Empty<string>();
         csv.ReadHeader();
         return csv.HeaderRecord ?? Array.Empty<string>();
     }
@@ -66,7 +69,9 @@ public sealed class CsvSource : FileSourceBase
 
         if (_tieneEncabezado)
         {
-            await csv.ReadAsync();
+            // Fecha: 05/09/2026 - TAREA: 00015 - Linea: 1 - Revision final: mismo guard que en
+            // LeerEncabezado para un archivo vacio (ver comentario ahi).
+            if (!await csv.ReadAsync()) yield break;
             csv.ReadHeader();
         }
 

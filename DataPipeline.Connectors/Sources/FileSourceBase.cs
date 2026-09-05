@@ -82,7 +82,11 @@ public abstract class FileSourceBase : ISource
             if (claveWatermark is null) { yield return fila; continue; }
 
             var valores = new Dictionary<string, object?>(fila.Values);
-            if (valores.TryGetValue(claveWatermark, out var crudo) && crudo is not null)
+            // Fecha: 05/09/2026 - TAREA: 00015 - Linea: 1 - Revision final: una celda en blanco (CSV
+            // vacio o Excel vacio) en la columna watermark llega como "" (no null); sin este chequeo,
+            // TipoValorConverter.Convertir("", ...) tira FormatException y tumba toda la corrida.
+            // Se trata igual que "sin watermark configurado": la fila se sigue emitiendo sin tipar/filtrar.
+            if (valores.TryGetValue(claveWatermark, out var crudo) && crudo is not null && crudo is not string { Length: 0 })
             {
                 var tipado = TipoValorConverter.Convertir(crudo, _tipoColumnaWatermark ?? "string");
                 valores[claveWatermark] = tipado;

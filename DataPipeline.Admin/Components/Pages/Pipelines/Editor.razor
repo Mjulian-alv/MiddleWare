@@ -405,6 +405,15 @@ else
             _error = "Reemplazar requiere al menos una columna clave.";
             return;
         }
+        // Fecha: 05/09/2026 - TAREA: 00015 - Linea: 1 - Revision final: elegir columna watermark sin
+        // elegir su tipo dejaba FileSourceBase comparando como texto plano ("string" por defecto), el
+        // mismo bug de fondo que el diseño de tipado de watermark existe para evitar.
+        if (EsOrigenDeArchivo && !string.IsNullOrWhiteSpace(_form.ColumnaWatermark)
+            && string.IsNullOrWhiteSpace(_form.ColumnaWatermarkTipo))
+        {
+            _error = "Elegiste una columna watermark: falta elegir su tipo (necesario para comparar bien un archivo).";
+            return;
+        }
 
         _guardando = true;
         try

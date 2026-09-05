@@ -90,4 +90,22 @@ public class CsvSourceTests
         var segunda = await Drenar(source.ReadAsync(Ctx(), CancellationToken.None));
         Assert.Empty(segunda);
     }
+
+    // Fecha: 05/09/2026 - TAREA: 00015 - Linea: 1 - Revision final (Hallazgo 2, Importante): un CSV
+    // genuinamente vacio (0 bytes) hacia que csv.Read() devolviera false y ReadHeader() tirara
+    // ReaderException; como MoverAProcesados solo corre despues de una lectura limpia, el archivo vacio
+    // quedaba en la carpeta de entrada para siempre, fallando en cada corrida siguiente.
+    [Fact]
+    public async Task Un_archivo_vacio_no_explota_y_se_mueve_a_procesados()
+    {
+        var carpeta = NuevaCarpeta();
+        File.WriteAllText(Path.Combine(carpeta, "vacio.csv"), "");
+        var source = new CsvSource(carpeta, "*.csv", null, null, ",", "UTF-8", true);
+
+        var filas = await Drenar(source.ReadAsync(Ctx(), CancellationToken.None));
+
+        Assert.Empty(filas);
+        Assert.False(File.Exists(Path.Combine(carpeta, "vacio.csv")));
+        Assert.True(File.Exists(Path.Combine(carpeta, "procesados", "vacio.csv")));
+    }
 }

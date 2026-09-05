@@ -153,6 +153,34 @@ public class FileSourceBaseTests
         Assert.Equal(2, filas.Count);
     }
 
+    // Fecha: 05/09/2026 - TAREA: 00015 - Linea: 1 - Revision final (Hallazgo 3, Importante): una celda
+    // en blanco ("") en la columna watermark (CSV con un campo vacio, o celda vacia de Excel en una
+    // columna por lo demas poblada) tiraba FormatException al tipar, tumbando toda la corrida. Se trata
+    // igual que "sin watermark configurado": la fila se sigue emitiendo, sin tipar/filtrar ese valor.
+    [Fact]
+    public async Task Una_celda_en_blanco_en_la_columna_watermark_no_tumba_la_corrida()
+    {
+        var carpeta = NuevaCarpeta();
+        CrearArchivo(carpeta, "datos.txt", DateTime.UtcNow);
+        var contenido = new Dictionary<string, (string[], string[][])>
+        {
+            ["datos.txt"] = (new[] { "id", "fecha" }, new[]
+            {
+                new[] { "1", "2026-01-01" },
+                new[] { "2", "" },             // celda en blanco en la columna watermark
+                new[] { "3", "2026-01-05" },
+            })
+        };
+        var source = new FileSourceDePrueba(carpeta, "*.txt", "fecha", "date", contenido);
+        var ctx = Ctx(new Dictionary<string, string> { ["watermark"] = "2026-01-01T00:00:00.0000000" });
+
+        var filas = await Drenar(source.ReadAsync(ctx, CancellationToken.None));
+
+        Assert.Equal(new[] { "2", "3" }, filas.Select(f => f.Values["id"]));
+        var filaEnBlanco = filas.Single(f => (string)f.Values["id"]! == "2");
+        Assert.Equal("", filaEnBlanco.Values["fecha"]); // no tipada: queda tal cual, en vez de tirar
+    }
+
     [Fact]
     public async Task Un_archivo_con_el_mismo_nombre_ya_en_procesados_no_se_pisa()
     {
