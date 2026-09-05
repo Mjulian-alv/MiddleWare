@@ -52,11 +52,21 @@ else
                         <DropDownListFieldSettings Value="Id" Text="Nombre"></DropDownListFieldSettings>
                     </SfDropDownList>
                 </div>
-                <div class="mb-1">
-                    <SfTextBox Placeholder="SQL *" FloatLabelType="FloatLabelType.Always" Multiline="true" @bind-Value="_form.Sql" />
-                </div>
+                @if (!EsOrigenDeArchivo)
+                {
+                    <div class="mb-1">
+                        <SfTextBox Placeholder="SQL *" FloatLabelType="FloatLabelType.Always" Multiline="true" @bind-Value="_form.Sql" />
+                    </div>
+                }
+                else
+                {
+                    <div class="texto-caption texto-secundario mb-1">
+                        Origen de archivo: no hace falta SQL. "Traer columnas" lee el encabezado del archivo mas nuevo sin procesar.
+                    </div>
+                }
                 <div class="mt-2 mb-3 d-flex align-center gap-2">
-                    <SfButton CssClass="e-small" OnClick="TraerColumnas" Disabled="@(_form.DataSourceId is null || string.IsNullOrWhiteSpace(_form.Sql))">
+                    <SfButton CssClass="e-small" OnClick="TraerColumnas"
+                              Disabled="@(_form.DataSourceId is null || (!EsOrigenDeArchivo && string.IsNullOrWhiteSpace(_form.Sql)))">
                         Traer columnas
                     </SfButton>
                     @if (_columnasMsg is not null)
@@ -75,11 +85,24 @@ else
                     <div class="mb-1">
                         <SfDropDownList TValue="string" TItem="string" DataSource="NombresColumnas" @bind-Value="_form.ColumnaWatermark"
                                         Placeholder="Columna watermark (opcional)" FloatLabelType="FloatLabelType.Always" AllowFiltering="true" />
-                        <div class="texto-caption texto-secundario mt-1">
-                            Tu SQL debe filtrar con @@watermark (ej. WHERE @@watermark IS NULL OR fecha_mod &gt; @@watermark).
-                            Si la columna es fecha, debe ser datetime/datetime2.
-                        </div>
+                        @if (!EsOrigenDeArchivo)
+                        {
+                            <div class="texto-caption texto-secundario mt-1">
+                                Tu SQL debe filtrar con @@watermark (ej. WHERE @@watermark IS NULL OR fecha_mod &gt; @@watermark).
+                                Si la columna es fecha, debe ser datetime/datetime2.
+                            </div>
+                        }
                     </div>
+                    @if (EsOrigenDeArchivo && !string.IsNullOrWhiteSpace(_form.ColumnaWatermark))
+                    {
+                        <div class="mb-1">
+                            <SfDropDownList TValue="string" TItem="string" DataSource="_tiposCast" @bind-Value="_form.ColumnaWatermarkTipo"
+                                            Placeholder="Tipo de columna watermark" FloatLabelType="FloatLabelType.Always" />
+                            <div class="texto-caption texto-secundario mt-1">
+                                Necesario para comparar bien un archivo (texto plano): sin esto, una fecha o un numero se compara como texto.
+                            </div>
+                        </div>
+                    }
                 }
             </div>
         </div>
@@ -248,6 +271,8 @@ else
         public int ModoEscritura { get; set; } = 2; // Reemplazar
         public List<string> ColumnasClave { get; set; } = new();
         public string? ColumnaWatermark { get; set; } = ""; // columna del origen a trackear; vacio = no incremental
+        // Fecha: 03/09/2026 - TAREA: 00015 - Linea: 1 - Solo aplica a origenes Csv/Xlsx (SqlServer ya viene tipado).
+        public string? ColumnaWatermarkTipo { get; set; } = "";
         public List<ColumnaOrigenDto> EsquemaOrigen { get; set; } = new();
         public int Programacion { get; set; }        // 0 = BajoDemanda
         public string? HoraDelDia { get; set; } = "08:00";
@@ -332,10 +357,10 @@ else
     private async Task TraerColumnas()
     {
         _columnasMsg = "Trayendo...";
-        var cols = await Origenes.TraerColumnasAsync(_form.DataSourceId!.Value, _form.Sql);
+        var cols = await Origenes.TraerColumnasAsync(_form.DataSourceId!.Value, EsOrigenDeArchivo ? null : _form.Sql);
         if (cols is null)
         {
-            _columnasMsg = "No se pudieron traer las columnas (revisa el SQL o la conexion).";
+            _columnasMsg = "No se pudieron traer las columnas (revisa el SQL/la conexion, o que haya archivos en la carpeta).";
             return;
         }
         _form.EsquemaOrigen = cols;
@@ -343,6 +368,12 @@ else
     }
 
     private List<string> NombresColumnas => _form.EsquemaOrigen.Select(c => c.Nombre).ToList();
+
+    // Fecha: 03/09/2026 - TAREA: 00015 - Linea: 1 - Origen de archivo = no hay SQL; hay tipo de watermark.
+    private int? TipoDataSourceElegido =>
+        _datasources.FirstOrDefault(d => d.Id == _form.DataSourceId)?.Tipo;
+
+    private bool EsOrigenDeArchivo => TipoDataSourceElegido is 1 or 2; // Csv=1, Xlsx=2 (ver DataSourcesAdminService)
 
     private void Subir(TransformForm t)
     {
@@ -361,9 +392,9 @@ else
         _error = null;
         if (string.IsNullOrWhiteSpace(_form.Nombre)) { _error = "El nombre es obligatorio."; return; }
         if (string.IsNullOrWhiteSpace(_form.TablaDestino)) { _error = "La tabla destino es obligatoria."; return; }
-        if (_form.DataSourceId is null || string.IsNullOrWhiteSpace(_form.Sql))
+        if (_form.DataSourceId is null || (!EsOrigenDeArchivo && string.IsNullOrWhiteSpace(_form.Sql)))
         {
-            _error = "El origen requiere un DataSource y un SQL.";
+            _error = "El origen requiere un DataSource" + (EsOrigenDeArchivo ? "." : " y un SQL.");
             return;
         }
         if (_form.ModoEscritura == 2 && _form.ColumnasClave.Count == 0)
@@ -384,18 +415,22 @@ else
 
     private PipelineDefinition ConstruirDef()
     {
+        var conector = TipoDataSourceElegido switch { 1 => "CsvSource", 2 => "XlsxSource", _ => "SqlServerSource" };
+        var cfgOrigen = new Dictionary<string, JsonElement>
+        {
+            ["dataSourceId"] = JsonSerializer.SerializeToElement(_form.DataSourceId?.ToString() ?? "")
+        };
+        if (conector == "SqlServerSource")
+            cfgOrigen["sql"] = JsonSerializer.SerializeToElement(_form.Sql);
+
         var pasos = new List<StepDefinition>
         {
             new()
             {
                 Nombre = "origen",
                 Tipo = TipoPaso.Origen,
-                Conector = "SqlServerSource",
-                Configuracion = new()
-                {
-                    ["dataSourceId"] = JsonSerializer.SerializeToElement(_form.DataSourceId?.ToString() ?? ""),
-                    ["sql"] = JsonSerializer.SerializeToElement(_form.Sql)
-                }
+                Conector = conector,
+                Configuracion = cfgOrigen
             }
         };
 
@@ -438,6 +473,10 @@ else
             ColumnaWatermark = string.IsNullOrWhiteSpace(_form.ColumnaWatermark)
                 ? null
                 : _form.ColumnaWatermark!.Trim(),
+            // Fecha: 03/09/2026 - TAREA: 00015 - Linea: 1
+            ColumnaWatermarkTipo = string.IsNullOrWhiteSpace(_form.ColumnaWatermarkTipo)
+                ? null
+                : _form.ColumnaWatermarkTipo!.Trim(),
             Pasos = pasos
         };
     }
@@ -466,6 +505,8 @@ else
             .Select(c => new ColumnaOrigenDto(c.Nombre, c.Tipo))
             .ToList();
         _form.ColumnaWatermark = def.ColumnaWatermark ?? "";
+        // Fecha: 03/09/2026 - TAREA: 00015 - Linea: 1
+        _form.ColumnaWatermarkTipo = def.ColumnaWatermarkTipo ?? "";
         _form.FilasPorLote = def.FilasPorLote;
 
         var origen = def.Pasos.FirstOrDefault(p => p.Tipo == TipoPaso.Origen);
