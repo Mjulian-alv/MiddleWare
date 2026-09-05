@@ -53,6 +53,44 @@ plan, documentado bajo dos correlativos por esa razon puntual.
 - **Task 11** (TAREA 00015): verificacion final — build de toda la solucion 0 warnings/0 errores,
   suite completa 99 tests verdes (15 Persistence + 62 Core/Connectors/Engine + 22 Api), cierre de
   este documento y de la fila en `~/.claude/TAREAS.md`.
+- **Revision final de rama completa** (TAREA 00015, posterior al cierre de Task 11): la Task 11
+  verifico build y tests, pero no probo XLSX con celdas numericas/fecha REALES bajo una cultura
+  distinta de en-US — todos los tests de XLSX existentes usaban celdas de texto. Esa revision de
+  rama completa encontro 1 hallazgo Critico y 3 Importantes que ninguna revision por task habia
+  detectado, corregidos en el commit `598464c`:
+  - **Critico** — `XlsxSource.LeerFilasAsync` convertia cada celda con `.Value.ToString()`, que en
+    ClosedXML formatea `Number`/`DateTime` con la cultura de la maquina (ej. es-AR: `10.5` -> texto
+    `"10,5"`, una fecha -> `dd/MM/yyyy`). `TipoValorConverter.Convertir` reparsea ese string con
+    `InvariantCulture`, que lee `"10,5"` como `105` (silencioso, corrompe el valor Y el filtro de
+    watermark) y hace explotar cualquier fecha con dia > 12 (`FormatException`). Fix: se extrae el
+    valor NATIVO de la celda segun `XLCellValue.Type` (`XLDataType.Number` -> `GetNumber()` (double),
+    `.DateTime` -> `GetDateTime()`, `.Boolean` -> `GetBoolean()`, `.TimeSpan` -> `GetTimeSpan()`,
+    resto -> `GetText()`), que es lo que el spec original pedia y evita el paso por un string
+    localizado. Verificado RED/GREEN: revirtiendo el fix, los 2 tests nuevos (`Bajo_cultura_es_AR_*`)
+    fallan exactamente como se predijo (105 en vez de filtrar, y `FormatException` en la fecha);
+    con el fix, pasan.
+  - **Importante** — un CSV vacio (0 bytes) hacia que `csv.Read()` devolviera `false` y
+    `csv.ReadHeader()` tirara `ReaderException`; como `FileSourceBase` solo mueve un archivo a
+    `\procesados` despues de una lectura limpia, el archivo vacio quedaba trabado en la carpeta de
+    entrada, fallando en cada corrida siguiente. Fix: mismo guard `if (!csv.Read()) ...` que ya
+    tenia la rama sin encabezado, aplicado tambien a la rama con encabezado (`LeerEncabezado` y
+    `LeerFilasAsync`).
+  - **Importante** — una celda en blanco (`""`) en la columna watermark (CSV con un campo vacio, o
+    Excel con una celda vacia en una columna por lo demas poblada) tumbaba toda la corrida:
+    `FiltrarYTipar` solo chequeaba `crudo is not null`, no longitud vacia, y
+    `TipoValorConverter.Convertir("", ...)` tira `FormatException`. Fix: se trata `""` igual que
+    `null` (fila emitida sin tipar/filtrar ese valor).
+  - **Importante** — el Editor del Admin dejaba guardar un pipeline con columna watermark elegida
+    pero sin su tipo, lo que hacia que `FileSourceBase` cayera al default `"string"` (comparacion
+    lexicografica silenciosa) — el mismo bug de fondo que el diseño de tipado de watermark existe
+    para evitar. Fix: `Guardar()` valida que, para un origen de archivo con columna watermark no
+    vacia, el tipo tambien este elegido. Sin test automatizado (Admin es build-only por convencion
+    de este repo); verificado por build limpio.
+
+  Tests nuevos: 4 (2 en `XlsxSourceTests`, 1 en `CsvSourceTests`, 1 en `FileSourceBaseTests`).
+  Suite final: **103 tests verdes** (15 Persistence + 66 Core/Connectors/Engine + 22 Api), build
+  0 warnings/0 errores. Reporte detallado:
+  `.superpowers/sdd/task-11-final-review-fix-report.md`.
 
 **Fuera de alcance (explicito, decidido con el usuario):** MySQL/MariaDB/Oracle/RestApi (existen en
 el proyecto madre ConsultasGenericas pero no se pidieron aca); upload manual de archivos por el
