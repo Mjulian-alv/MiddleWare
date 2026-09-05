@@ -52,6 +52,7 @@ else
                         <DropDownListFieldSettings Value="Id" Text="Nombre"></DropDownListFieldSettings>
                     </SfDropDownList>
                 </div>
+                @* Fecha: 03/09/2026 - TAREA: 00015 - Linea: 1 - Origenes de archivo (Csv/Xlsx): Paso 1 reacciona al Tipo del origen elegido. *@
                 @if (!EsOrigenDeArchivo)
                 {
                     <div class="mb-1">
@@ -354,6 +355,7 @@ else
 
     private void QuitarTransform(TransformForm t) => _form.Transforms.Remove(t);
 
+    // Fecha: 03/09/2026 - TAREA: 00015 - Linea: 1 - Origenes de archivo: sin SQL, se lee el encabezado de la carpeta.
     private async Task TraerColumnas()
     {
         _columnasMsg = "Trayendo...";
@@ -392,6 +394,7 @@ else
         _error = null;
         if (string.IsNullOrWhiteSpace(_form.Nombre)) { _error = "El nombre es obligatorio."; return; }
         if (string.IsNullOrWhiteSpace(_form.TablaDestino)) { _error = "La tabla destino es obligatoria."; return; }
+        // Fecha: 03/09/2026 - TAREA: 00015 - Linea: 1 - Origenes de archivo (Csv/Xlsx) no requieren SQL.
         if (_form.DataSourceId is null || (!EsOrigenDeArchivo && string.IsNullOrWhiteSpace(_form.Sql)))
         {
             _error = "El origen requiere un DataSource" + (EsOrigenDeArchivo ? "." : " y un SQL.");
@@ -415,13 +418,25 @@ else
 
     private PipelineDefinition ConstruirDef()
     {
+        // Fecha: 03/09/2026 - TAREA: 00015 - Linea: 1 - Origenes de archivo (Csv/Xlsx): sin sql, y con
+        // columnaWatermark/tipoColumnaWatermark en la config del paso cuando hay watermark elegido. El
+        // SourceFactory (Csv/Xlsx) lee esas dos claves via LeerStringOpcional para que FileSourceBase
+        // pueda filtrar/tipar filas; sin esto el filtro quedaba como no-op aunque la UI dejara elegirlo.
         var conector = TipoDataSourceElegido switch { 1 => "CsvSource", 2 => "XlsxSource", _ => "SqlServerSource" };
         var cfgOrigen = new Dictionary<string, JsonElement>
         {
             ["dataSourceId"] = JsonSerializer.SerializeToElement(_form.DataSourceId?.ToString() ?? "")
         };
         if (conector == "SqlServerSource")
+        {
             cfgOrigen["sql"] = JsonSerializer.SerializeToElement(_form.Sql);
+        }
+        else if (!string.IsNullOrWhiteSpace(_form.ColumnaWatermark))
+        {
+            cfgOrigen["columnaWatermark"] = JsonSerializer.SerializeToElement(_form.ColumnaWatermark.Trim());
+            if (!string.IsNullOrWhiteSpace(_form.ColumnaWatermarkTipo))
+                cfgOrigen["tipoColumnaWatermark"] = JsonSerializer.SerializeToElement(_form.ColumnaWatermarkTipo.Trim());
+        }
 
         var pasos = new List<StepDefinition>
         {
