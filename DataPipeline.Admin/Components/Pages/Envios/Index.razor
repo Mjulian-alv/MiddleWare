@@ -1,0 +1,194 @@
+@* Fecha: 17/09/2026 - TAREA: 00038 - Linea: 3 - Envio a SQL externo: lista de envios.
+   Maquetas: docs/Diseño/00038-envio-sql/01-envios-lista.png (con datos) y 02-envios-vacio.png (vacio).
+   "Filas" no es un campo del envio: se deriva de su ultima corrida en el historial (EnvioId), para no
+   agregar al modelo un dato que el diseño no acordo. *@
+@page "/envios"
+@using DataPipeline.Core.Envios
+@inject EnviosAdminService Envios
+@inject PipelinesAdminService Pipelines
+@inject DataSourcesAdminService Origenes
+@inject RunsAdminService Runs
+@inject NavigationManager Nav
+
+<PageTitle>Envios — Admin</PageTitle>
+
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Envios</h1>
+        <p class="page-subtitle">Push del resultado de un pipeline a una tabla en una base externa.</p>
+    </div>
+    <SfButton CssClass="e-primary" OnClick="@(() => Nav.NavigateTo("/envios/nuevo"))">
+        <span class="e-icons e-plus" style="margin-right:.4rem;font-size:.75rem;"></span>Nuevo envio
+    </SfButton>
+</div>
+
+@if (_mensaje is not null)
+{
+    <SfMessage Severity="@(_mensajeOk ? MessageSeverity.Success : MessageSeverity.Error)" CssClass="mb-3">@_mensaje</SfMessage>
+}
+
+@if (_cargando)
+{
+    <div style="position:relative;min-height:80px;"><SfSpinner Visible="true" /></div>
+}
+else if (_items.Count == 0)
+{
+    <div class="panel">
+        <div class="pa-8" style="text-align:center;">
+            <div class="icon-tile mb-4" style="width:60px;height:60px;border-radius:14px;">
+                <span class="e-icons e-export" style="font-size:1.5rem;"></span>
+            </div>
+            <h3 style="font-size:1.05rem;font-weight:800;margin-bottom:8px;">Todavia no hay envios</h3>
+            <p class="texto-body2 texto-secundario mx-auto mb-4" style="max-width:440px;line-height:1.55;">
+                Un envio empuja las filas que dejo un pipeline en su tabla destino hacia una tabla en otro
+                servidor SQL. Mueve las columnas tal cual: si hay que renombrar o convertir, eso se resuelve
+                en las transformaciones del pipeline.
+            </p>
+            <SfButton CssClass="e-primary" OnClick="@(() => Nav.NavigateTo("/envios/nuevo"))">
+                <span class="e-icons e-plus" style="margin-right:.4rem;font-size:.75rem;"></span>Crear el primero
+            </SfButton>
+        </div>
+    </div>
+
+    <SfMessage Severity="MessageSeverity.Info" CssClass="mt-4">
+        <strong>Antes de crear un envio</strong> hace falta un pipeline que ya haya corrido al menos una vez
+        (para que exista su tabla destino) y un origen de tipo SQL Server apuntando al servidor remoto.
+    </SfMessage>
+}
+else
+{
+    <SfGrid DataSource="_items" AllowPaging="true" AllowSorting="true">
+        <GridPageSettings PageSize="15"></GridPageSettings>
+        <GridColumns>
+            <GridColumn Field="@nameof(Envio.Nombre)" HeaderText="Nombre">
+                <Template Context="ctx"><strong>@(((Envio)ctx).Nombre)</strong></Template>
+            </GridColumn>
+            <GridColumn HeaderText="Pipeline" Width="190">
+                <Template Context="ctx">@NombreDe(_pipelines, ((Envio)ctx).PipelineId)</Template>
+            </GridColumn>
+            <GridColumn HeaderText="Destino" Width="220">
+                <Template Context="ctx">
+                    @{ var e = (Envio)ctx; }
+                    <div>@NombreDe(_origenes, e.DataSourceId)</div>
+                    <div class="texto-caption texto-secundario" style="font-family:Consolas,monospace;">@e.TablaDestino</div>
+                </Template>
+            </GridColumn>
+            <GridColumn HeaderText="Estado" Width="150" TextAlign="TextAlign.Center">
+                <Template Context="ctx">
+                    @{ var e = (Envio)ctx; }
+                    <span class="e-badge @BadgeDe(e.Estado)">@TextoDe(e)</span>
+                </Template>
+            </GridColumn>
+            <GridColumn Field="@nameof(Envio.UltimoEnvio)" HeaderText="Ultimo envio" Type="ColumnType.DateTime" Format="g" Width="160"></GridColumn>
+            <GridColumn HeaderText="Filas" Width="90" TextAlign="TextAlign.Right">
+                <Template Context="ctx">
+                    @{ var e = (Envio)ctx; }
+                    @(_filasPorEnvio.TryGetValue(e.Id, out var filas) ? filas.ToString("N0") : "—")
+                </Template>
+            </GridColumn>
+            <GridColumn HeaderText="Ultimo error">
+                <Template Context="ctx">
+                    @{ var e = (Envio)ctx; }
+                    @if (string.IsNullOrWhiteSpace(e.UltimoError))
+                    {
+                        <span class="texto-secundario">—</span>
+                    }
+                    else
+                    {
+                        <span class="texto-caption" style="color:var(--error);font-family:Consolas,monospace;" title="@e.UltimoError">@Recortar(e.UltimoError)</span>
+                    }
+                </Template>
+            </GridColumn>
+            <GridColumn HeaderText="" Width="120" TextAlign="TextAlign.Right">
+                <Template Context="ctx">
+                    @{ var e = (Envio)ctx; }
+                    @if (e.Estado == EstadoEnvio.Fallido)
+                    {
+                        <SfButton CssClass="e-small e-danger e-outline" Disabled="_ocupado" OnClick="@(() => Reintentar(e))">Reintentar</SfButton>
+                    }
+                    else
+                    {
+                        <SfButton CssClass="e-small" OnClick="@(() => Nav.NavigateTo($"/envios/editar/{e.Id}"))">Editar</SfButton>
+                    }
+                </Template>
+            </GridColumn>
+        </GridColumns>
+    </SfGrid>
+
+    <SfMessage Severity="MessageSeverity.Info" CssClass="mt-4">
+        <strong>Los envios no tienen horario propio.</strong> Cada uno corre cuando su pipeline termina bien,
+        y el scheduler lo reintenta solo si falla. Para cambiar la frecuencia, se cambia la del pipeline.
+    </SfMessage>
+}
+
+@code {
+    private List<Envio> _items = new();
+    private Dictionary<Guid, string> _pipelines = new();
+    private Dictionary<Guid, string> _origenes = new();
+    private Dictionary<Guid, long> _filasPorEnvio = new();
+    private bool _cargando = true;
+    private bool _ocupado;
+    private string? _mensaje;
+    private bool _mensajeOk;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarAsync();
+        _cargando = false;
+    }
+
+    private async Task CargarAsync()
+    {
+        var envios = Envios.ObtenerTodosAsync();
+        var pipelines = Pipelines.ObtenerTodosAsync();
+        var origenes = Origenes.ObtenerTodosAsync();
+        var corridas = Runs.ObtenerRecientesAsync(500);
+        await Task.WhenAll(envios, pipelines, origenes, corridas);
+
+        _items = envios.Result;
+        _pipelines = pipelines.Result.ToDictionary(p => p.Id, p => p.Nombre);
+        _origenes = origenes.Result.ToDictionary(o => o.Id, o => o.Nombre);
+
+        // Ultima corrida de cada envio. Si fue anterior a las 500 mas recientes, la columna muestra "—".
+        _filasPorEnvio = corridas.Result
+            .Where(c => c.EnvioId is not null)
+            .GroupBy(c => c.EnvioId!.Value)
+            .ToDictionary(g => g.Key, g => g.OrderByDescending(c => c.Inicio).First().FilasEscritas);
+    }
+
+    private async Task Reintentar(Envio envio)
+    {
+        _ocupado = true;
+        _mensaje = null;
+        try
+        {
+            _mensajeOk = await Envios.ReintentarAsync(envio.Id);
+            _mensaje = _mensajeOk
+                ? $"'{envio.Nombre}' reactivado. Sale en el proximo ciclo del scheduler (hasta 60 s)."
+                : $"No se pudo reactivar '{envio.Nombre}' (revisa la API o las credenciales).";
+            await CargarAsync();
+        }
+        finally { _ocupado = false; }
+    }
+
+    private static string NombreDe(Dictionary<Guid, string> nombres, Guid id) =>
+        nombres.TryGetValue(id, out var n) ? n : "(no existe)";
+
+    private static string BadgeDe(EstadoEnvio estado) => estado switch
+    {
+        EstadoEnvio.AlDia => "e-badge-success",
+        EstadoEnvio.Pendiente => "e-badge-warning",
+        EstadoEnvio.Reintentando => "e-badge-info",
+        EstadoEnvio.Fallido => "e-badge-danger",
+        _ => "e-badge-light"
+    };
+
+    private static string TextoDe(Envio e) => e.Estado switch
+    {
+        EstadoEnvio.AlDia => "Al dia",
+        EstadoEnvio.Reintentando => $"Reintentando {e.IntentosFallidos}/{Envio.MaxIntentos}",
+        var otro => otro.ToString()
+    };
+
+    private static string Recortar(string texto) => texto.Length <= 60 ? texto : texto[..57] + "...";
+}

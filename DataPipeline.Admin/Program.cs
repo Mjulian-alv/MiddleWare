@@ -54,6 +54,8 @@ IHttpClientBuilder ApiClient<T>() where T : class =>
 ApiClient<PipelinesAdminService>();
 ApiClient<RunsAdminService>();
 ApiClient<DataSourcesAdminService>();
+// Fecha: 17/09/2026 - TAREA: 00038 - Linea: 3 - Envio a SQL externo.
+ApiClient<EnviosAdminService>();
 
 var app = builder.Build();
 
