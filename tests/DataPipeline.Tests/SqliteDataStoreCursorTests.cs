@@ -48,7 +48,7 @@ public class SqliteDataStoreCursorTests
         await store.EnsureTableAsync("t", Cols, ModoEscritura.Agregar, CancellationToken.None);
         await store.WriteBatchAsync("t", Lote((1, 100), (2, 200)), Clave, ModoEscritura.Agregar, CancellationToken.None);
 
-        var lote = await store.LeerDesdeAsync("t", null, 1, 10, CancellationToken.None);
+        var lote = await store.LeerDesdeAsync("t", null, null, 10, CancellationToken.None);
 
         Assert.Equal(2, lote.Rows.Count);
     }
@@ -60,13 +60,13 @@ public class SqliteDataStoreCursorTests
         await store.EnsureTableAsync("t", Cols, ModoEscritura.Agregar, CancellationToken.None);
         await store.WriteBatchAsync("t", Lote((1, 100)), Clave, ModoEscritura.Agregar, CancellationToken.None);
 
-        var primera = await store.LeerDesdeAsync("t", null, 1, 10, CancellationToken.None);
+        var primera = await store.LeerDesdeAsync("t", null, null, 10, CancellationToken.None);
         var cursor = Creado(primera.Rows[0]);
 
         await Separar();
         await store.WriteBatchAsync("t", Lote((2, 200)), Clave, ModoEscritura.Agregar, CancellationToken.None);
 
-        var nuevas = await store.LeerDesdeAsync("t", cursor, 1, 10, CancellationToken.None);
+        var nuevas = await store.LeerDesdeAsync("t", cursor, null, 10, CancellationToken.None);
 
         Assert.Single(nuevas.Rows);
         Assert.Equal(2L, Convert.ToInt64(nuevas.Rows[0].Values["id"]));
@@ -79,13 +79,13 @@ public class SqliteDataStoreCursorTests
         await store.EnsureTableAsync("t", Cols, ModoEscritura.Reemplazar, CancellationToken.None);
         await store.WriteBatchAsync("t", Lote((1, 100)), Clave, ModoEscritura.Reemplazar, CancellationToken.None);
 
-        var primera = await store.LeerDesdeAsync("t", null, 1, 10, CancellationToken.None);
+        var primera = await store.LeerDesdeAsync("t", null, null, 10, CancellationToken.None);
         var cursor = Creado(primera.Rows[0]);
 
         await Separar();
         await store.WriteBatchAsync("t", Lote((1, 999)), Clave, ModoEscritura.Reemplazar, CancellationToken.None);
 
-        var nuevas = await store.LeerDesdeAsync("t", cursor, 1, 10, CancellationToken.None);
+        var nuevas = await store.LeerDesdeAsync("t", cursor, null, 10, CancellationToken.None);
 
         Assert.Single(nuevas.Rows);
         Assert.Equal(999L, Convert.ToInt64(nuevas.Rows[0].Values["monto"]));
@@ -99,8 +99,8 @@ public class SqliteDataStoreCursorTests
         await store.EnsureTableAsync("t", Cols, ModoEscritura.Agregar, CancellationToken.None);
         await store.WriteBatchAsync("t", Lote((1, 100)), Clave, ModoEscritura.Agregar, CancellationToken.None);
 
-        var primera = await store.LeerDesdeAsync("t", null, 1, 10, CancellationToken.None);
-        var otra = await store.LeerDesdeAsync("t", Creado(primera.Rows[0]), 1, 10, CancellationToken.None);
+        var primera = await store.LeerDesdeAsync("t", null, null, 10, CancellationToken.None);
+        var otra = await store.LeerDesdeAsync("t", Creado(primera.Rows[0]), null, 10, CancellationToken.None);
 
         Assert.Empty(otra.Rows);
     }
@@ -112,33 +112,71 @@ public class SqliteDataStoreCursorTests
         await store.EnsureTableAsync("t", Cols, ModoEscritura.Agregar, CancellationToken.None);
         await store.WriteBatchAsync("t", Lote((1, 100), (2, 200)), Clave, ModoEscritura.Agregar, CancellationToken.None);
 
-        var todas = await store.LeerDesdeAsync("t", null, 1, 10, CancellationToken.None);
+        var todas = await store.LeerDesdeAsync("t", null, null, 10, CancellationToken.None);
         var keys = todas.Rows.Select(r => (string)r.Values[ServingColumns.Key]!).ToList();
         await store.MarcarProcesadasAsync("t", keys, CancellationToken.None);
 
-        var despues = await store.LeerDesdeAsync("t", null, 1, 10, CancellationToken.None);
+        var despues = await store.LeerDesdeAsync("t", null, null, 10, CancellationToken.None);
 
         Assert.Equal(2, despues.Rows.Count);
+    }
+
+    // Recorre toda la tabla por keyset, como lo hace el envio, llamando a 'entrePaginas' despues de
+    // cada pagina. Devuelve los ids en el orden en que se leyeron.
+    private static async Task<List<long>> RecorrerAsync(SqliteDataStore store, int porPagina, Func<Task>? entrePaginas = null)
+    {
+        var ids = new List<long>();
+        DateTime? creado = null;
+        string? key = null;
+        while (true)
+        {
+            var pagina = await store.LeerDesdeAsync("t", creado, key, porPagina, CancellationToken.None);
+            if (pagina.Rows.Count == 0) break;
+            ids.AddRange(pagina.Rows.Select(r => Convert.ToInt64(r.Values["id"])));
+            var ultima = pagina.Rows[^1];
+            creado = Creado(ultima);
+            key = (string)ultima.Values[ServingColumns.Key]!;
+            if (entrePaginas is not null) await entrePaginas();
+        }
+        return ids;
     }
 
     [Fact]
     public async Task Pagina_sin_repetir_ni_saltear()
     {
-        // Las 5 filas van en un solo lote y comparten el mismo _creado: sin desempate estable por
-        // _key, el orden entre paginas no estaria garantizado.
+        // Las 5 filas van en un solo lote y comparten el mismo _creado: el desempate por _key es lo
+        // unico que ordena entre paginas.
         var store = new SqliteDataStore(NuevaDb());
         await store.EnsureTableAsync("t", Cols, ModoEscritura.Agregar, CancellationToken.None);
         await store.WriteBatchAsync("t", Lote((1, 1), (2, 2), (3, 3), (4, 4), (5, 5)), Clave,
             ModoEscritura.Agregar, CancellationToken.None);
 
-        var p1 = await store.LeerDesdeAsync("t", null, 1, 2, CancellationToken.None);
-        var p2 = await store.LeerDesdeAsync("t", null, 2, 2, CancellationToken.None);
-        var p3 = await store.LeerDesdeAsync("t", null, 3, 2, CancellationToken.None);
+        var ids = await RecorrerAsync(store, porPagina: 2);
 
-        var ids = p1.Rows.Concat(p2.Rows).Concat(p3.Rows)
-            .Select(r => Convert.ToInt64(r.Values["id"])).ToList();
+        Assert.Equal(new long[] { 1, 2, 3, 4, 5 }, ids);
+    }
 
-        Assert.Equal(5, ids.Count);
-        Assert.Equal(5, ids.Distinct().Count());
+    [Fact]
+    public async Task No_saltea_filas_si_el_pipeline_reescribe_una_mientras_se_pagina()
+    {
+        // Regresion del paginado por OFFSET: una corrida manual (POST api/run) puede correr en paralelo
+        // con el envio. Si reescribe en Reemplazar una fila ya leida, esa fila salta al final (su
+        // _creado se refresca) y todas las posiciones siguientes se corren un lugar. Con OFFSET, la
+        // fila que ocupa el hueco no se lee nunca y el cursor avanza igual: se pierde sin error.
+        var store = new SqliteDataStore(NuevaDb());
+        await store.EnsureTableAsync("t", Cols, ModoEscritura.Reemplazar, CancellationToken.None);
+        await store.WriteBatchAsync("t", Lote((1, 1), (2, 2), (3, 3), (4, 4), (5, 5)), Clave,
+            ModoEscritura.Reemplazar, CancellationToken.None);
+
+        var reescrita = false;
+        var ids = await RecorrerAsync(store, porPagina: 2, entrePaginas: async () =>
+        {
+            if (reescrita) return;
+            reescrita = true;
+            await Separar();
+            await store.WriteBatchAsync("t", Lote((1, 999)), Clave, ModoEscritura.Reemplazar, CancellationToken.None);
+        });
+
+        Assert.Equal(new long[] { 1, 2, 3, 4, 5 }, ids.Distinct().OrderBy(i => i));
     }
 }

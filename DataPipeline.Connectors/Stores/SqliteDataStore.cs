@@ -135,32 +135,37 @@ public sealed class SqliteDataStore : IDataStore
         return new RecordBatch { Columns = cols, Rows = filas };
     }
 
-    // Fecha: 17/09/2026 - TAREA: 00038 - Linea: 1 - Envio a SQL externo: lectura por cursor.
-    // Orden por (_creado, _key) y no solo por _creado: todas las filas de un mismo lote comparten el
-    // _creado exacto (WriteBatchAsync toma DateTime.Now una sola vez), y sin un desempate estable el
-    // paginado podria repetir o saltear filas entre paginas.
-    public async Task<RecordBatch> LeerDesdeAsync(string table, DateTime? creadoDesde, int page, int pageSize, CancellationToken ct)
+    // Fecha: 17/09/2026 - TAREA: 00038 - Linea: 1 - Envio a SQL externo: lectura por cursor, paginada
+    // por keyset. Orden por (_creado, _key) y no solo por _creado: todas las filas de un mismo lote
+    // comparten el _creado exacto (WriteBatchAsync toma DateTime.Now una sola vez), asi que _key es lo
+    // unico que las ordena. Keyset y no OFFSET: ver el comentario en IDataStore.
+    public async Task<RecordBatch> LeerDesdeAsync(string table, DateTime? creadoDesde, string? keyDesde, int limite, CancellationToken ct)
     {
-        if (page < 1) page = 1;
-        if (pageSize <= 0) pageSize = 100;
+        if (limite <= 0) limite = 100;
 
         await using var con = new SqliteConnection(_connectionString);
         await con.OpenAsync(ct);
 
-        var filtro = creadoDesde is null ? "" : $" WHERE {Quote(ServingColumns.Creado)} > $desde";
+        var creado = Quote(ServingColumns.Creado);
+        var key = Quote(ServingColumns.Key);
+        var filtro = (creadoDesde, keyDesde) switch
+        {
+            (null, _) => "",
+            (_, null) => $" WHERE {creado} > $desde",
+            _ => $" WHERE {creado} > $desde OR ({creado} = $desde AND {key} > $key)"
+        };
+
         await using var cmd = con.CreateCommand();
-        cmd.CommandText = $"SELECT * FROM {Quote(table)}{filtro} " +
-                          $"ORDER BY {Quote(ServingColumns.Creado)}, {Quote(ServingColumns.Key)} " +
-                          "LIMIT $take OFFSET $skip;";
+        cmd.CommandText = $"SELECT * FROM {Quote(table)}{filtro} ORDER BY {creado}, {key} LIMIT $take;";
         if (creadoDesde is not null)
         {
-            var pDesde = cmd.CreateParameter();
-            pDesde.ParameterName = "$desde";
-            pDesde.Value = creadoDesde.Value;
-            cmd.Parameters.Add(pDesde);
+            var pDesde = cmd.CreateParameter(); pDesde.ParameterName = "$desde"; pDesde.Value = creadoDesde.Value; cmd.Parameters.Add(pDesde);
         }
-        var pTake = cmd.CreateParameter(); pTake.ParameterName = "$take"; pTake.Value = pageSize; cmd.Parameters.Add(pTake);
-        var pSkip = cmd.CreateParameter(); pSkip.ParameterName = "$skip"; pSkip.Value = (page - 1) * pageSize; cmd.Parameters.Add(pSkip);
+        if (creadoDesde is not null && keyDesde is not null)
+        {
+            var pKey = cmd.CreateParameter(); pKey.ParameterName = "$key"; pKey.Value = keyDesde; cmd.Parameters.Add(pKey);
+        }
+        var pTake = cmd.CreateParameter(); pTake.ParameterName = "$take"; pTake.Value = limite; cmd.Parameters.Add(pTake);
 
         await using var rd = await cmd.ExecuteReaderAsync(ct);
         var cols = Enumerable.Range(0, rd.FieldCount).Select(rd.GetName).ToArray();
