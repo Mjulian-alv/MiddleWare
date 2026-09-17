@@ -1,0 +1,381 @@
+@* Fecha: 17/09/2026 - TAREA: 00038 - Linea: 3 - Envio a SQL externo: alta/edicion.
+   Maquetas: docs/Diseño/00038-envio-sql/03-envio-form.png (normal) y 04-envio-form-error.png (error).
+   El envio no tiene campo de horario: hereda la cadencia de su pipeline, y eso se muestra en el hint.
+   "Forzar envio ahora" solo aparece habilitado: sobre un envio que alguien apago a mano, reactivarlo
+   desde aca lo volveria a prender sin que se note. *@
+@page "/envios/nuevo"
+@page "/envios/editar/{Id:guid}"
+@using DataPipeline.Core.DataSources
+@using DataPipeline.Core.Envios
+@inject EnviosAdminService Envios
+@inject PipelinesAdminService Pipelines
+@inject DataSourcesAdminService Origenes
+@inject RunsAdminService Runs
+@inject NavigationManager Nav
+
+<PageTitle>@(Id is null ? "Nuevo envio" : "Editar envio") — Admin</PageTitle>
+
+<div class="page-header">
+    <div>
+        <h1 class="page-title">@(Id is null ? "Nuevo envio" : "Editar envio")</h1>
+        @if (Id is not null && _original is not null)
+        {
+            <p class="page-subtitle">@_original.Nombre</p>
+        }
+    </div>
+    <SfButton CssClass="e-flat" OnClick="@(() => Nav.NavigateTo("/envios"))">Volver a la lista</SfButton>
+</div>
+
+@if (_error is not null)
+{
+    <SfMessage Severity="MessageSeverity.Error" CssClass="mb-3">@_error</SfMessage>
+}
+
+@if (_cargando)
+{
+    <div style="position:relative;min-height:80px;"><SfSpinner Visible="true" /></div>
+}
+else
+{
+    <div class="fila-grid" style="gap:20px;">
+        @* ── Columna izquierda: datos del envio ── *@
+        <div class="col-md-8">
+            <div class="panel">
+                <div class="panel-header"><span class="e-icons e-export"></span>Datos del envio</div>
+                <div class="pa-4">
+                    <div class="mb-4">
+                        <SfTextBox Placeholder="Nombre *" FloatLabelType="FloatLabelType.Always" @bind-Value="_form.Nombre" />
+                    </div>
+
+                    <div class="mb-4">
+                        <SfDropDownList TValue="Guid" TItem="PipelineDefinition" DataSource="_pipelines" @bind-Value="_form.PipelineId"
+                                        Placeholder="Pipeline *" FloatLabelType="FloatLabelType.Always" AllowFiltering="true">
+                            <DropDownListFieldSettings Value="Id" Text="Nombre"></DropDownListFieldSettings>
+                        </SfDropDownList>
+                        <div class="texto-caption texto-secundario mt-1">
+                            El envio corre cuando este pipeline termina bien. <strong>No tiene horario propio:</strong>
+                            hereda la cadencia del pipeline
+                            @if (PipelineElegido is not null)
+                            {
+                                <text>(hoy: </text><span class="e-badge e-badge-primary">@Cadencia(PipelineElegido)</span><text>).</text>
+                            }
+                            else
+                            {
+                                <text>.</text>
+                            }
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <div class="d-flex gap-3 align-center">
+                            <div class="flex-grow-1">
+                                <SfDropDownList TValue="Guid" TItem="DataSourceVista" DataSource="_conexiones" @bind-Value="_form.DataSourceId"
+                                                Placeholder="Conexion destino *" FloatLabelType="FloatLabelType.Always">
+                                    <DropDownListFieldSettings Value="Id" Text="Nombre"></DropDownListFieldSettings>
+                                    <DropDownListEvents TValue="Guid" TItem="DataSourceVista" ValueChange="@(_ => _prueba = null)"></DropDownListEvents>
+                                </SfDropDownList>
+                            </div>
+                            <SfButton Disabled="@(_form.DataSourceId == Guid.Empty || _probando)" OnClick="ProbarConexion">
+                                @(_probando ? "Probando..." : "Probar conexion")
+                            </SfButton>
+                        </div>
+                        @if (_prueba is { Ok: true })
+                        {
+                            <SfMessage Severity="MessageSeverity.Success" CssClass="mt-2">Conexion correcta.</SfMessage>
+                        }
+                        else if (_prueba is { Ok: false })
+                        {
+                            <SfMessage Severity="MessageSeverity.Error" CssClass="mt-2">
+                                <strong>No se pudo conectar.</strong><br />
+                                <span style="font-family:Consolas,monospace;font-size:.8rem;">@_prueba.Error</span>
+                            </SfMessage>
+                        }
+                        else
+                        {
+                            <div class="texto-caption texto-secundario mt-1">
+                                Origen de tipo SQL Server. La contrasena viaja encriptada en reposo.
+                            </div>
+                        }
+                    </div>
+
+                    <div class="mb-4">
+                        <SfTextBox Placeholder="Tabla destino *" FloatLabelType="FloatLabelType.Always" @bind-Value="_form.TablaDestino"
+                                   CssClass="@(ErrorTabla is not null ? "e-error" : "")" />
+                        @if (ErrorTabla is not null)
+                        {
+                            <div class="texto-caption mt-1" style="color:var(--error);font-weight:600;">@ErrorTabla</div>
+                        }
+                        else
+                        {
+                            <div class="texto-caption texto-secundario mt-1">
+                                Se crea automaticamente en el servidor remoto si no existe. Requiere permiso de
+                                <span style="font-family:Consolas,monospace;">CREATE TABLE</span> en esa base.
+                            </div>
+                        }
+                    </div>
+
+                    <div class="mb-4">
+                        <SfSwitch @bind-Checked="_form.Habilitado" OnLabel="Si" OffLabel="No"></SfSwitch>
+                        <span class="texto-body2 ms-2">Habilitado</span>
+                        <div class="texto-caption texto-secundario mt-1">
+                            @if (_original is { Estado: EstadoEnvio.Fallido })
+                            {
+                                <text>Se deshabilito solo al agotar los @Envio.MaxIntentos intentos.</text>
+                            }
+                            else
+                            {
+                                <text>Deshabilitado, el pipeline sigue corriendo pero no se empuja nada.</text>
+                            }
+                        </div>
+                    </div>
+
+                    <div class="d-flex gap-2 mt-6">
+                        <SfButton CssClass="e-primary" Disabled="@(!PuedeGuardar || _guardando)" OnClick="Guardar">
+                            @(_guardando ? "Guardando..." : "Guardar")
+                        </SfButton>
+                        <SfButton CssClass="e-flat" OnClick="@(() => Nav.NavigateTo("/envios"))">Cancelar</SfButton>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        @* ── Columna derecha: aviso + estado ── *@
+        <div class="col-md-4">
+            @if (_original is { Estado: EstadoEnvio.Fallido })
+            {
+                <SfMessage Severity="MessageSeverity.Error" CssClass="mb-3">
+                    <strong>Envio fallido.</strong><br />
+                    Se agotaron los @Envio.MaxIntentos intentos (esperas de 1, 2, 4 y 8 min). No se vuelve a
+                    intentar solo hasta que alguien lo reactive desde aca.
+                </SfMessage>
+            }
+
+            <SfMessage Severity="MessageSeverity.Info" CssClass="mb-3">
+                <strong>Este envio mueve columnas, no transforma.</strong><br />
+                Lo que hay en la tabla intermedia es exactamente lo que llega al destino. Para renombrar,
+                castear o filtrar, se usan las transformaciones del pipeline.
+            </SfMessage>
+
+            @if (_original is not null)
+            {
+                <div class="panel">
+                    <div class="panel-header"><span class="e-icons e-circle-info"></span>Estado</div>
+                    <div class="pa-4">
+                        <table class="tabla-simple">
+                            <tbody>
+                                <tr>
+                                    <td class="texto-secundario">Estado</td>
+                                    <td style="text-align:right;"><span class="e-badge @BadgeDe(_original.Estado)">@TextoDe(_original)</span></td>
+                                </tr>
+                                <tr>
+                                    <td class="texto-secundario">@(_original.Estado == EstadoEnvio.Fallido ? "Ultimo envio OK" : "Ultimo envio")</td>
+                                    <td style="text-align:right;font-family:Consolas,monospace;">@(_original.UltimoEnvio?.ToString("g") ?? "—")</td>
+                                </tr>
+                                @if (_original.Estado == EstadoEnvio.Fallido)
+                                {
+                                    <tr>
+                                        <td class="texto-secundario">Filas esperando</td>
+                                        <td style="text-align:right;font-family:Consolas,monospace;color:var(--warn);">—</td>
+                                    </tr>
+                                }
+                                else
+                                {
+                                    <tr>
+                                        <td class="texto-secundario">Filas empujadas</td>
+                                        <td style="text-align:right;font-family:Consolas,monospace;">@(_filasUltimoEnvio?.ToString("N0") ?? "—")</td>
+                                    </tr>
+                                }
+                                <tr>
+                                    <td class="texto-secundario">Cursor (_creado hasta)</td>
+                                    <td style="text-align:right;font-family:Consolas,monospace;">@(_original.UltimoCreado?.ToString("dd/MM/yyyy HH:mm:ss") ?? "—")</td>
+                                </tr>
+                                <tr>
+                                    <td class="texto-secundario">Intentos fallidos</td>
+                                    <td style="text-align:right;font-family:Consolas,monospace;@(_original.IntentosFallidos > 0 ? "color:var(--error);" : "")">
+                                        @_original.IntentosFallidos / @Envio.MaxIntentos
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+
+                        <div class="texto-caption texto-secundario mt-3">
+                            @if (_original.Estado == EstadoEnvio.Fallido)
+                            {
+                                <text>Las filas no se pierden: quedan en la tabla intermedia y </text><strong>siguen disponibles por GET /api/data</strong><text>. El envio las va a empujar cuando vuelva a funcionar.</text>
+                            }
+                            else
+                            {
+                                <text>El cursor avanza solo cuando el envio termina bien. Una fila modificada por el pipeline vuelve a viajar sola.</text>
+                            }
+                        </div>
+
+                        @if (_original.Estado == EstadoEnvio.Fallido)
+                        {
+                            <SfButton CssClass="e-primary w-100 mt-3" Disabled="_reintentando" OnClick="Reintentar">
+                                @(_reintentando ? "Reactivando..." : "Reintentar ahora")
+                            </SfButton>
+                        }
+                        else if (_original.Habilitado)
+                        {
+                            <SfButton CssClass="w-100 mt-3" Disabled="_reintentando" OnClick="Reintentar">
+                                @(_reintentando ? "Marcando..." : "Forzar envio ahora")
+                            </SfButton>
+                        }
+
+                        @if (_avisoReintento is not null)
+                        {
+                            <div class="texto-caption mt-2" style="color:var(--ok);">@_avisoReintento</div>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public Guid? Id { get; set; }
+
+    private Envio _form = new() { Habilitado = true };
+    private Envio? _original;
+    private List<PipelineDefinition> _pipelines = new();
+    private List<DataSourceVista> _conexiones = new();
+    private long? _filasUltimoEnvio;
+
+    private bool _cargando = true;
+    private bool _guardando;
+    private bool _probando;
+    private bool _reintentando;
+    private string? _error;
+    private string? _errorTablaApi;
+    private string? _avisoReintento;
+    private ProbarResp? _prueba;
+
+    private PipelineDefinition? PipelineElegido => _pipelines.FirstOrDefault(p => p.Id == _form.PipelineId);
+
+    private bool PuedeGuardar =>
+        !string.IsNullOrWhiteSpace(_form.Nombre) && !string.IsNullOrWhiteSpace(_form.TablaDestino)
+        && _form.PipelineId != Guid.Empty && _form.DataSourceId != Guid.Empty;
+
+    // En un envio existente, vaciar la tabla se marca en el momento; en uno nuevo seria ruido mostrar
+    // errores antes de que se haya escrito nada. El error de la API (nombre invalido) se muestra siempre.
+    private string? ErrorTabla =>
+        _errorTablaApi is not null ? _errorTablaApi
+        : _original is not null && string.IsNullOrWhiteSpace(_form.TablaDestino) ? "El nombre de la tabla destino es obligatorio."
+        : null;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var pipelines = Pipelines.ObtenerTodosAsync();
+        var origenes = Origenes.ObtenerTodosAsync();
+        await Task.WhenAll(pipelines, origenes);
+
+        _pipelines = pipelines.Result.OrderBy(p => p.Nombre).ToList();
+        // Solo SQL Server sirve de destino: la API rechaza el resto (DestinoFactory).
+        _conexiones = origenes.Result.Where(o => o.Tipo == (int)TipoDataSource.SqlServer && o.Activo)
+                                     .OrderBy(o => o.Nombre).ToList();
+
+        if (Id is Guid id)
+        {
+            _original = await Envios.ObtenerPorIdAsync(id);
+            if (_original is null)
+            {
+                _error = "El envio no existe o no se pudo leer (revisa la API o las credenciales).";
+            }
+            else
+            {
+                _form = Copiar(_original);
+                var corridas = await Runs.ObtenerRecientesAsync(500);
+                _filasUltimoEnvio = corridas.Where(c => c.EnvioId == id)
+                                            .OrderByDescending(c => c.Inicio)
+                                            .Select(c => (long?)c.FilasEscritas)
+                                            .FirstOrDefault();
+            }
+        }
+        _cargando = false;
+    }
+
+    private async Task ProbarConexion()
+    {
+        _probando = true;
+        _prueba = null;
+        try { _prueba = await Origenes.ProbarAsync(_form.DataSourceId); }
+        finally { _probando = false; }
+    }
+
+    private async Task Guardar()
+    {
+        _guardando = true;
+        _error = null;
+        _errorTablaApi = null;
+        try
+        {
+            var (ok, error) = await Envios.GuardarAsync(_form);
+            if (ok)
+            {
+                Nav.NavigateTo("/envios");
+                return;
+            }
+            // La API valida el nombre de la tabla (tres partes, vacio): ese error va debajo del campo.
+            if (error is not null && error.Contains("tabla", StringComparison.OrdinalIgnoreCase))
+                _errorTablaApi = error.Trim('"');
+            else
+                _error = string.IsNullOrWhiteSpace(error) ? "No se pudo guardar (revisa la API o las credenciales)." : error.Trim('"');
+        }
+        finally { _guardando = false; }
+    }
+
+    private async Task Reintentar()
+    {
+        if (_original is null) return;
+        _reintentando = true;
+        _avisoReintento = null;
+        try
+        {
+            if (await Envios.ReintentarAsync(_original.Id))
+            {
+                _avisoReintento = "Marcado. Sale en el proximo ciclo del scheduler (hasta 60 s).";
+                _original = await Envios.ObtenerPorIdAsync(_original.Id) ?? _original;
+                _form.Habilitado = _original.Habilitado;
+            }
+            else
+            {
+                _error = "No se pudo reactivar el envio (revisa la API o las credenciales).";
+            }
+        }
+        finally { _reintentando = false; }
+    }
+
+    private static Envio Copiar(Envio e) => new()
+    {
+        Id = e.Id, Nombre = e.Nombre, Habilitado = e.Habilitado, PipelineId = e.PipelineId,
+        DataSourceId = e.DataSourceId, TablaDestino = e.TablaDestino, Pendiente = e.Pendiente,
+        InicioEnCurso = e.InicioEnCurso, UltimoCreado = e.UltimoCreado, IntentosFallidos = e.IntentosFallidos,
+        ProximoIntento = e.ProximoIntento, UltimoEnvio = e.UltimoEnvio, UltimoError = e.UltimoError
+    };
+
+    private static string Cadencia(PipelineDefinition p) => p.Programacion switch
+    {
+        TipoProgramacion.BajoDemanda => "Bajo demanda",
+        TipoProgramacion.Diaria => $"Diaria {p.HoraDelDia}",
+        TipoProgramacion.Semanal => $"Semanal {p.HoraDelDia}",
+        TipoProgramacion.Mensual => $"Mensual dia {p.DiaDelMes} {p.HoraDelDia}",
+        var otro => otro.ToString()
+    };
+
+    private static string BadgeDe(EstadoEnvio estado) => estado switch
+    {
+        EstadoEnvio.AlDia => "e-badge-success",
+        EstadoEnvio.Pendiente => "e-badge-warning",
+        EstadoEnvio.Reintentando => "e-badge-info",
+        EstadoEnvio.Fallido => "e-badge-danger",
+        _ => "e-badge-light"
+    };
+
+    private static string TextoDe(Envio e) => e.Estado switch
+    {
+        EstadoEnvio.AlDia => "Al dia",
+        EstadoEnvio.Reintentando => $"Reintentando {e.IntentosFallidos}/{Envio.MaxIntentos}",
+        var otro => otro.ToString()
+    };
+}
