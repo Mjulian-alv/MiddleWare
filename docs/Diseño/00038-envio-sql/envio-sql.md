@@ -1,8 +1,12 @@
 # Envio a SQL externo (push desde pipeline) — diseño previo
 
 > **TAREA:** 00038 · **Fecha:** 12/09/2026 · **Repo:** `D:\Sistemas\MiddleWare` (DataPipeline)
-> **Estado:** diseño acordado, sin implementar. El plan de implementación va aparte, en
-> `docs/superpowers/`.
+> **Estado:** **implementado** el 17/09/2026. El plan está en
+> `docs/superpowers/plans/2026-09-12-datapipeline-envio-sql.md`.
+>
+> Este documento se actualizó al terminar, con tres cosas que el diseño original no cubría y se
+> resolvieron al construir: qué columnas de control viajan al destino (§3), de dónde salen los tipos
+> SQL (§3) y el paginado por keyset del cursor (§3). Los nombres definitivos están en §6.
 
 ---
 
@@ -137,8 +141,36 @@ Esto **esquiva** la limitación del ack global (`_procesado` sin identidad de co
 agravarla. Es la misma limitación anotada en `_borrador-encadenamiento.md`.
 
 **Guarda de correctitud:** el cursor avanza **sólo al final del envío completo**, nunca por lote.
-Como el envío corre después de que el pipeline terminó, ve toda la corrida de una vez y no puede
-partirse en el medio de un `_creado` repetido.
+
+Y entre lotes se avanza **por keyset** (`(_creado, _key) > última fila leída`), no por `OFFSET`. El
+motivo se encontró al implementar: `POST /api/run/{id}` corre en un hilo de request, en paralelo con
+el tick del scheduler. Si esa corrida manual reescribe en `Reemplazar` una fila que el envío ya pasó,
+la fila salta al final del orden (su `_creado` se refresca) y **todas las posiciones siguientes se
+corren un lugar**; con `OFFSET`, la fila que cae en el hueco no se lee nunca y el cursor avanza igual.
+Pérdida silenciosa de datos. Reproducido contra SQLite antes del fix; hay test de regresión.
+
+### Qué columnas viajan al destino
+
+La tabla remota lleva **las columnas de negocio + `_key` + `_creado`**.
+
+| Columna | Por qué |
+|---|---|
+| `_key` | Es la clave del upsert (PK de la tabla remota) |
+| `_creado` | Es **cómo el otro sistema sabe qué es nuevo**: "leé lo que tenga `_creado` mayor a tu última lectura" |
+| `_procesado` | **No viaja.** Es el ack de *nuestros* consumidores PULL; del otro lado no significa nada |
+
+`_creado` se convierte a `DateTime` antes de mandarlo: SQLite lo devuelve como texto, y mandarlo
+crudo dejaría la conversión a `DATETIME2` en manos de la cultura del servidor remoto.
+
+### De dónde salen los tipos SQL
+
+`EnsureTable` necesita tipos y el pipeline no los declara. Se toma **el primer valor no nulo de cada
+columna en el primer lote** y se mapea CLR → SQL (`int/long → BIGINT`, `decimal → DECIMAL(38,10)`,
+`double → FLOAT`, `bool → BIT`, `DateTime → DATETIME2`, `Guid → UNIQUEIDENTIFIER`, resto
+`NVARCHAR(MAX)`). Se eligen tipos anchos a propósito: la tabla es nuestra y no vale la pena afinar.
+
+> **Limitación conocida:** el tipo queda fijado en la primera corrida. Si después cambia el `cast` del
+> pipeline, la tabla remota hay que borrarla a mano.
 
 ### Historial
 
@@ -189,20 +221,27 @@ no estén en ellas.**
 
 ---
 
-## 6. Orden de implementación
+## 6. Lo construido
 
-Por capa, de adentro hacia afuera. Cada paso deja el build en verde y los tests pasando.
+Por capa, de adentro hacia afuera. Nombres definitivos, tal como quedaron.
 
-| # | Capa | Qué |
-|---|---|---|
-| 1 | `Core` | Entidad `Envio`, `EstadoEnvio`, abstracción `IEnvioStore`. `EnvioId` en `PipelineRun` |
-| 2 | `Core` | `IDestinoSql` (o el nombre que se acuerde): `EnsureTableAsync` + `WriteBatchAsync`. **No** es un `IDataStore`: no lee, no ackea |
-| 3 | `Persistence` | DDL en `MetadataSchemaInitializer`, `EfEnvioStore`, `ObtenerPendientesAsync` con la toma anti-solape |
-| 4 | `Connectors` | `SqlServerDestino` (T-SQL, `IF EXISTS...UPDATE ELSE INSERT`, **sin `MERGE`** — mismo criterio que TAREA 00026 por SQL Server viejo) |
-| 5 | `Core`/`Connectors` | `IDataStore.LeerDesdeAsync(table, creadoDesde, page, pageSize)` — lectura por cursor, sin el filtro de `_procesado` |
-| 6 | `Engine` | `EjecutorEnvios` + el enganche en `EjecutorProgramado` (prender `Pendiente`) y el barrido en el tick |
-| 7 | `Api` | CRUD `/api/envios`, `POST /api/envios/{id}/reintentar` |
-| 8 | `Admin` | Las tres pantallas de la sección 5 + `NavMenu` |
+| Capa | Qué |
+|---|---|
+| `Core` | `Envios/Envio.cs` (entidad + `EstadoEnvio` derivado + `MaxIntentos`), `IEnvioStore`, `IDestinoDatos` + `ColumnaDestino`, `IDestinoFactory`, `EnvioId` en `PipelineRun`, `IHistorialCorridas.IniciarEnvioAsync`, `IDataStore.LeerDesdeAsync(tabla, creadoDesde, keyDesde, limite)` |
+| `Persistence` | DDL de `Envios` + `ALTER` de `Corridas` en `MetadataSchemaInitializer`, mapping en `MetadataDbContext`, `EfEnvioStore` (lecturas sin tracking, toma anti-solape con `ExecuteUpdateAsync` condicional) |
+| `Connectors` | `Destinos/SqlServerDestinoSql` (armado de SQL **puro**, testeable sin servidor), `Destinos/SqlServerDestino` (ADO.NET), `Destinos/DestinoFactory`, keyset en `SqliteDataStore.LeerDesdeAsync` |
+| `Engine` | `BackoffEnvios` (política pura), `EjecutorEnvios` (barrido completo), `EjecutorProgramado` prende `Pendiente` |
+| `Api` | `EnviosController` (CRUD + `POST /api/envios/{id}/reintentar`), **rol admin**, el tick corre el barrido, la corrida manual prende la bandera |
+| `Admin` | `EnviosAdminService`, `/envios`, `/envios/nuevo`, `/envios/editar/{id}`, columna Tipo y filtros en `/runs`, entrada en `NavMenu` |
+
+**El destino no es un `IDataStore`, a propósito:** `IDataStore` asume `_key`/`_creado`/`_procesado` y
+tiene lectura y ack. Un destino externo sólo se escribe. Se llamó `IDestinoDatos` (el diseño lo dejaba
+abierto como `IDestinoSql`).
+
+**Rol admin en `/api/envios`:** las rutas de gestión existentes ya lo exigían y esta se había pensado
+sin él. Sin el rol, el usuario **pull** —el consumidor externo— podía crear envíos apuntados a
+cualquier servidor SQL usando las credenciales ya guardadas en los orígenes. Hay test de los dos
+lados: con el rol da 403, sin el rol daba 200.
 
 **Restricciones del repo a respetar:** identificadores técnicos en inglés, propiedades de dominio en
 castellano sin tildes ni ñ; commits directos a `main`; gate de 0 warnings
@@ -220,6 +259,9 @@ castellano sin tildes ni ñ; commits directos a `main`; gate de 0 warnings
 | 4 | **Si mañana se implementa el grupo de pipelines** del borrador de encadenamiento, el disparo del envío debe colgarse **del cierre del grupo, no de cada miembro**. De lo contrario se empuja una tanda coja | **Anotado acá para que esa tarea lo encuentre** |
 | 5 | **Ack global** (`_procesado` sin identidad de consumidor). Este diseño lo esquiva pero no lo arregla. Sigue siendo deuda | Fuera de alcance |
 | 6 | **Deuda de nombre:** `DataSource` usado como destino | Fuera de alcance |
+| 7 | **El tipo de cada columna queda fijado en la primera corrida** (ver §3). Cambiar el `cast` del pipeline después obliga a borrar la tabla remota a mano | Asumido |
+| 8 | **La escritura real contra un SQL Server no se probó en vivo:** no hay servidor en el entorno de desarrollo. El armado del SQL está testeado puro y `SqlServerDestino` es una cáscara fina, pero la ruta completa hay que probarla antes de producción (mismo criterio que TAREA 00026) | **Pendiente antes de producción** |
+| 9 | **"Filas esperando"** en el formulario no tiene endpoint que lo calcule: muestra `—` | Anotado, no se inventó superficie nueva |
 
 ---
 

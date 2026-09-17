@@ -101,3 +101,94 @@ delta (el mecanismo de mover a `\procesados` lo resuelve sin necesitar saberlo).
 un pipeline contra cada uno, correrlo y confirmar que el archivo se mueve a `\procesados` y que una
 segunda corrida sin archivos nuevos no reprocesa nada) — el Admin es build-only por convencion de
 este repo, sin tests automatizados de UI.
+
+---
+
+## TAREA 00038 — 12-17/09/2026
+
+**Pedido (numerado y confirmado con el usuario antes de planificar):**
+
+1. Entidad `Envio`: push del resultado de un pipeline a una tabla nuestra en un SQL Server remoto.
+   Mueve columnas, no transforma.
+2. Encadenamiento pull → push por bandera `Pendiente`: el pipeline la prende al terminar OK, el tick
+   de 60 s la consume, reintenta si falla.
+3. Pantallas del Admin: lista de envios, alta/edicion con probar conexion, y el estado de los envios
+   en el historial de corridas.
+
+El pedido original fue "retomar la idea de hacer push desde pipeline". En el brainstorm se descubrio
+que **no es el sink REST de la Fase 5** que decia `ANALISIS-MIDDLEWARE.md:467`: el destino real es
+otra base SQL Server en otro servidor. Mismo concepto de entrega, transporte ADO.NET en vez de HTTP.
+
+**Diseño previo:** `docs/Diseño/00038-envio-sql/` — flujograma, 5 maquetas y `envio-sql.md`
+(actualizado al terminar con lo que se resolvio al construir).
+**Plan:** `docs/superpowers/plans/2026-09-12-datapipeline-envio-sql.md` (12 tasks).
+
+**Decisiones que fijaron el alcance:** la tabla destino es nuestra alojada en el servidor de ellos
+(sin mapeo de columnas ni constraints ajenas); el push mueve columnas y no transforma (eso queda en
+el `ColumnMapTransform` del pipeline); etapa de entrega separada, que preserva el desacople
+extraccion/entrega de la seccion 13 del analisis; y el envio no tiene reloj propio sino que se
+dispara por bandera `Pendiente` — asi el disparo y el reintento son la misma operacion sobre el tick
+de 60 s que ya existia, sin agregar un `TipoProgramacion` nuevo.
+
+**El cursor salio gratis:** `_creado` ya se refresca en el upsert de `SqliteDataStore` (linea 78), o
+sea que no es "cuando nacio la fila" sino "cuando se escribio por ultima vez". El push lee
+`WHERE _creado > UltimoCreado` **sin tocar `_procesado`**, asi que no le pisa filas a ningun
+consumidor PULL: esquiva la limitacion del ack global en vez de agravarla.
+
+**Ejecutado (12 tasks, inline con `superpowers:executing-plans`, un commit por task):** entidad y
+esquema (DDL idempotente, sin migracion EF) → `IEnvioStore` con toma anti-solape → lectura por cursor
+→ destino SQL Server (`IF EXISTS...UPDATE ELSE INSERT`, sin `MERGE`) → backoff → `EjecutorEnvios` →
+enganche en el scheduler y en la corrida manual → API → las tres pantallas del Admin.
+
+**Siete correcciones al plan, encontradas al ejecutarlo contra el codigo real:**
+
+1. **Agujero de seguridad:** el `EnviosController` del plan llevaba `[Authorize]` **sin**
+   `Roles = RolAdmin`, a diferencia de Pipelines y DataSources. El usuario **pull** (el consumidor
+   externo) podia crear envios apuntados a cualquier servidor SQL usando las credenciales ya
+   guardadas en los origenes. Verificado en los dos sentidos: sin el rol, pull recibe 200 OK.
+2. **Bug de paginacion (perdida silenciosa de datos):** `LeerDesdeAsync` paginaba por `OFFSET`. Una
+   corrida manual (`POST api/run`) corre en paralelo con el tick; si reescribe en `Reemplazar` una
+   fila ya leida, esa fila salta al final del orden y corre todas las posiciones siguientes — la que
+   cae en el hueco no se lee nunca y el cursor avanza igual. Reproducido con el mismo SQL contra
+   SQLite antes del fix (se perdia la fila 3 de 5). Se paso a **keyset** `(_creado, _key)`, con test
+   de regresion.
+3. **Estado viejo en los tests del store:** `GetByIdAsync` trackeaba y casi todo se escribe con
+   `ExecuteUpdateAsync`, que pasa por fuera del change tracker; EF habria devuelto la instancia
+   cacheada con los valores de antes. Lecturas `AsNoTracking` + `ChangeTracker.Clear()` al guardar.
+4. **Bug de cultura:** `_creado` vuelve de SQLite como texto y el plan lo convertia con
+   `Convert.ToDateTime` (dependiente de la cultura) — el mismo bug que ya se habia corregido en el
+   commit `598464c`. Se parsea con `InvariantCulture` y viaja al destino como `DateTime`.
+5. **`Partes()` destruia identificadores validos:** sacaba los corchetes con `Replace`, lo que rompe
+   un `]` legitimo del nombre y parte mal `[mi.esquema].[t]`. Se escribio un parser que respeta las
+   reglas de T-SQL, y ademas **rechaza nombres de tres partes** para no escribir en otra base.
+6. **Off-by-one en los reintentos** (detectado en el self-review del plan, antes de ejecutar):
+   `MaxIntentos = 5` con backoff 1-2-4-8-16 daba en realidad seis intentos, y el badge "5/5" nunca
+   coincidia con el estado Fallido. Quedo en 5 fallos totales con esperas de 1, 2, 4 y 8 min; se
+   regeneraron el flujograma y la maqueta `04`.
+7. **Validacion del nombre de tabla al guardar** (no estaba en el plan): sin eso, un error de tipeo
+   se aceptaba, fallaba cinco veces en runtime y el envio se deshabilitaba solo — el administrador se
+   enteraba quince minutos despues.
+
+Ademas, `EjecutorEnvios` recibe `filasPorLote` por constructor: con el valor de produccion (5.000) la
+rama que pide el lote siguiente por keyset —justo el codigo del fix 2— no se ejercitaria en ningun
+test. Y hay un test de DI explicito (`EnvioDiTests`) porque el hosted service resuelve `EjecutorEnvios`
+**dentro** del tick y traga la excepcion logueandola: un DI mal armado no romperia el arranque ni
+ningun otro test, y en produccion serian errores en el log cada 60 s sin que saliera un solo envio.
+
+**Suite final: 186 tests verdes** (34 Persistence + 119 Core/Connectors/Engine + 33 Api; 103 de base
++ 83 nuevos), build `--no-incremental` con 0 warnings y 0 errores.
+
+**Fuera de alcance (explicito):** destino con esquema ajeno (mapeo de columnas, upsert por clave
+compuesta de ellos, politica de filas rechazadas); destinos que no sean SQL Server; arreglar el ack
+global (`_procesado` sin identidad de consumidor); renombrar `DataSource` a "Conexion".
+
+**Pendiente del dueño:**
+
+- **Confirmar que el DBA otorga `CREATE TABLE`** en la base remota. Toda la decision 1 del diseño
+  cuelga de eso; si la respuesta es no, hay que rediseñar hacia "la tabla es de ellos" (~50-60% mas
+  de trabajo, detallado en §7 del diseño).
+- **Probar la escritura real contra un SQL Server.** No hay servidor en el entorno de desarrollo:
+  `SqlServerDestinoSql` esta testeado puro y `SqlServerDestino` es una cascara fina, pero la ruta
+  completa no se ejercito en vivo. Mismo criterio que TAREA 00026.
+- **Verificacion visual de las tres pantallas** contra las maquetas (el Admin es build-only por
+  convencion de este repo, y la verificacion pasa por el login: Claude no tipea contraseñas).
