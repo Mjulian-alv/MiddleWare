@@ -21,6 +21,19 @@ public sealed class EfHistorialCorridas : IHistorialCorridas
         return run.Id;
     }
 
+    // Fecha: 17/09/2026 - TAREA: 00038 - Linea: 2 - Encadenamiento pull/push.
+    public async Task<Guid> IniciarEnvioAsync(Guid pipelineId, Guid envioId, CancellationToken ct)
+    {
+        var run = new PipelineRun
+        {
+            Id = Guid.NewGuid(), PipelineId = pipelineId, EnvioId = envioId,
+            Inicio = DateTime.Now, Estado = EstadoCorrida.EnCurso
+        };
+        _db.Corridas.Add(run);
+        await _db.SaveChangesAsync(ct);
+        return run.Id;
+    }
+
     public async Task CompletarAsync(Guid runId, bool exito, long leidas, long escritas, string? error, CancellationToken ct)
     {
         var run = await _db.Corridas.FirstOrDefaultAsync(c => c.Id == runId, ct);
