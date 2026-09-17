@@ -20,8 +20,13 @@ internal sealed class FakeSource : ISource
         _cols = cols; _filas = filas; _porLote = porLote;
     }
 
+    // Fecha: 17/09/2026 - TAREA: 00038 - Linea: 2 - Encadenamiento pull/push: simula un origen caido
+    // para verificar que una corrida fallida no dispara envios. Null = no falla (comportamiento previo).
+    public Exception? FallaAlLeer { get; set; }
+
     public async IAsyncEnumerable<RecordBatch> ReadAsync(RunContext ctx, [EnumeratorCancellation] CancellationToken ct)
     {
+        if (FallaAlLeer is not null) throw FallaAlLeer;
         for (int i = 0; i < _filas.Count; i += _porLote)
         {
             await Task.Yield();

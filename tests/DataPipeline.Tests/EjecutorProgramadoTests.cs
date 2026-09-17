@@ -49,7 +49,8 @@ public class EjecutorProgramadoTests
         var runner = new PipelineRunner(new FakeSourceFactory(source), new TransformFactory(), new SqliteDataStore(NuevaData()));
         var enc = new EncryptionService(Convert.ToBase64String(new byte[32]));
         var hydrator = new PipelineHydrator(new FakeDataSourceStore(), enc);
-        var ejecutor = new EjecutorProgramado(store, hist, runner, enc, hydrator);
+        // Fecha: 17/09/2026 - TAREA: 00038 - Linea: 2 - EjecutorProgramado recibe IEnvioStore (prende Pendiente).
+        var ejecutor = new EjecutorProgramado(store, hist, runner, enc, hydrator, new EfEnvioStore(meta));
 
         var n = await ejecutor.ProcesarVencidosAsync(ahora, CancellationToken.None);
 
@@ -89,7 +90,8 @@ public class EjecutorProgramadoTests
         var runner = new PipelineRunner(new FakeSourceFactory(source), new TransformFactory(), new SqliteDataStore(NuevaData()));
         var enc = new EncryptionService(Convert.ToBase64String(new byte[32]));
         var hydrator = new PipelineHydrator(new FakeDataSourceStore(), enc);
-        var ejecutor = new EjecutorProgramado(store, hist, runner, enc, hydrator);
+        // Fecha: 17/09/2026 - TAREA: 00038 - Linea: 2 - EjecutorProgramado recibe IEnvioStore (prende Pendiente).
+        var ejecutor = new EjecutorProgramado(store, hist, runner, enc, hydrator, new EfEnvioStore(meta));
 
         await ejecutor.ProcesarVencidosAsync(ahora, CancellationToken.None);
 
@@ -121,7 +123,8 @@ public class EjecutorProgramadoTests
         var runner = new PipelineRunner(new FakeSourceFactory(source), new TransformFactory(), new SqliteDataStore(NuevaData()));
         var enc = new EncryptionService(Convert.ToBase64String(new byte[32]));
         var hydrator = new PipelineHydrator(new FakeDataSourceStore(), enc);
-        var ejecutor = new EjecutorProgramado(store, hist, runner, enc, hydrator);
+        // Fecha: 17/09/2026 - TAREA: 00038 - Linea: 2 - EjecutorProgramado recibe IEnvioStore (prende Pendiente).
+        var ejecutor = new EjecutorProgramado(store, hist, runner, enc, hydrator, new EfEnvioStore(meta));
 
         await ejecutor.ProcesarVencidosAsync(ahora, CancellationToken.None);
 

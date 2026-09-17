@@ -11,15 +11,19 @@ public sealed class EjecutorProgramado
     private readonly PipelineRunner _runner;
     private readonly IEncryptionService _encryption;
     private readonly PipelineHydrator _hydrator;
+    // Fecha: 17/09/2026 - TAREA: 00038 - Linea: 2 - Encadenamiento pull/push.
+    private readonly IEnvioStore _envios;
 
     public EjecutorProgramado(IPipelineStore store, IHistorialCorridas historial,
-        PipelineRunner runner, IEncryptionService encryption, PipelineHydrator hydrator)
+        PipelineRunner runner, IEncryptionService encryption, PipelineHydrator hydrator,
+        IEnvioStore envios)
     {
         _store = store;
         _historial = historial;
         _runner = runner;
         _encryption = encryption;
         _hydrator = hydrator;
+        _envios = envios;
     }
 
     public async Task<int> ProcesarVencidosAsync(DateTime ahora, CancellationToken ct)
@@ -37,6 +41,12 @@ public sealed class EjecutorProgramado
                 await _historial.CompletarAsync(runId, result.Success, result.RowsRead, result.RowsWritten, result.Error, ct);
                 if (result.Success && result.NuevoWatermark is not null)
                     await _store.ActualizarWatermarkAsync(def.Id, result.NuevoWatermark, ct);
+                // Fecha: 17/09/2026 - TAREA: 00038 - Linea: 2 - Encadenamiento pull/push: el pipeline
+                // NO ejecuta el envio, solo avisa que hay algo. Quien ejecuta es el mismo tick, via
+                // EjecutorEnvios. Se prende solo si la corrida salio bien: una tanda a medias no se
+                // empuja nunca.
+                if (result.Success)
+                    await _envios.MarcarPendientesAsync(def.Id, ct);
                 procesados++;
             }
             catch (Exception ex)

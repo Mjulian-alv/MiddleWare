@@ -27,6 +27,10 @@ builder.Services.AddScoped<IDataStore>(_ => new SqliteDataStore(dataCs));
 builder.Services.AddScoped<PipelineRunner>();
 builder.Services.AddScoped<PipelineHydrator>();
 builder.Services.AddScoped<EjecutorProgramado>();
+// Fecha: 17/09/2026 - TAREA: 00038 - Linea: 1 - Envio a SQL externo.
+builder.Services.AddScoped<IEnvioStore, EfEnvioStore>();
+builder.Services.AddScoped<IDestinoFactory, DataPipeline.Connectors.Destinos.DestinoFactory>();
+builder.Services.AddScoped<EjecutorEnvios>();
 builder.Services.AddSingleton<IEncryptionService>(sp =>
     new EncryptionService(sp.GetRequiredService<IConfiguration>()["Encryption:Key"]
         ?? Convert.ToBase64String(new byte[32])));
