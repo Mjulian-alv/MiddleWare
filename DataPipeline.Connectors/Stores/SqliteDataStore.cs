@@ -135,6 +135,46 @@ public sealed class SqliteDataStore : IDataStore
         return new RecordBatch { Columns = cols, Rows = filas };
     }
 
+    // Fecha: 17/09/2026 - TAREA: 00038 - Linea: 1 - Envio a SQL externo: lectura por cursor.
+    // Orden por (_creado, _key) y no solo por _creado: todas las filas de un mismo lote comparten el
+    // _creado exacto (WriteBatchAsync toma DateTime.Now una sola vez), y sin un desempate estable el
+    // paginado podria repetir o saltear filas entre paginas.
+    public async Task<RecordBatch> LeerDesdeAsync(string table, DateTime? creadoDesde, int page, int pageSize, CancellationToken ct)
+    {
+        if (page < 1) page = 1;
+        if (pageSize <= 0) pageSize = 100;
+
+        await using var con = new SqliteConnection(_connectionString);
+        await con.OpenAsync(ct);
+
+        var filtro = creadoDesde is null ? "" : $" WHERE {Quote(ServingColumns.Creado)} > $desde";
+        await using var cmd = con.CreateCommand();
+        cmd.CommandText = $"SELECT * FROM {Quote(table)}{filtro} " +
+                          $"ORDER BY {Quote(ServingColumns.Creado)}, {Quote(ServingColumns.Key)} " +
+                          "LIMIT $take OFFSET $skip;";
+        if (creadoDesde is not null)
+        {
+            var pDesde = cmd.CreateParameter();
+            pDesde.ParameterName = "$desde";
+            pDesde.Value = creadoDesde.Value;
+            cmd.Parameters.Add(pDesde);
+        }
+        var pTake = cmd.CreateParameter(); pTake.ParameterName = "$take"; pTake.Value = pageSize; cmd.Parameters.Add(pTake);
+        var pSkip = cmd.CreateParameter(); pSkip.ParameterName = "$skip"; pSkip.Value = (page - 1) * pageSize; cmd.Parameters.Add(pSkip);
+
+        await using var rd = await cmd.ExecuteReaderAsync(ct);
+        var cols = Enumerable.Range(0, rd.FieldCount).Select(rd.GetName).ToArray();
+        var filas = new List<Record>();
+        while (await rd.ReadAsync(ct))
+        {
+            var vals = new Dictionary<string, object?>(cols.Length);
+            for (int i = 0; i < cols.Length; i++)
+                vals[cols[i]] = await rd.IsDBNullAsync(i, ct) ? null : rd.GetValue(i);
+            filas.Add(new Record { Values = vals });
+        }
+        return new RecordBatch { Columns = cols, Rows = filas };
+    }
+
     public async Task<int> MarcarProcesadasAsync(string table, IReadOnlyList<string> keys, CancellationToken ct)
     {
         if (keys.Count == 0) return 0;
