@@ -1,20 +1,44 @@
+@* Fecha: 17/09/2026 - TAREA: 00038 - Linea: 3 - Envio a SQL externo: una sola tabla de historial.
+   EnvioId distingue la corrida de envio de la de pipeline. Maqueta: 05-corridas.png. *@
 @page "/runs"
+@using DataPipeline.Core.Envios
 @inject RunsAdminService Runs
+@inject PipelinesAdminService Pipelines
+@inject EnviosAdminService Envios
 
 <PageTitle>Corridas — Admin</PageTitle>
 
 <div class="page-header">
     <div>
         <h1 class="page-title">Corridas</h1>
-        <p class="page-subtitle">Historial de ejecuciones de los pipelines.</p>
+        <p class="page-subtitle">Historial de ejecuciones de los pipelines y sus envios.</p>
+    </div>
+    <div class="d-flex gap-2">
+        <SfButton CssClass="@BotonFiltro(Filtro.Todas)" OnClick="@(() => _filtro = Filtro.Todas)">Todas</SfButton>
+        <SfButton CssClass="@BotonFiltro(Filtro.Pipelines)" OnClick="@(() => _filtro = Filtro.Pipelines)">Solo pipelines</SfButton>
+        <SfButton CssClass="@BotonFiltro(Filtro.Envios)" OnClick="@(() => _filtro = Filtro.Envios)">Solo envios</SfButton>
     </div>
 </div>
 
-<SfGrid DataSource="_items" AllowPaging="true" AllowSorting="true">
+<SfGrid DataSource="Visibles" AllowPaging="true" AllowSorting="true">
     <GridPageSettings PageSize="20"></GridPageSettings>
     <GridColumns>
         <GridColumn Field="@nameof(PipelineRun.Inicio)" HeaderText="Inicio" Type="ColumnType.DateTime" Format="g" Width="170"></GridColumn>
         <GridColumn Field="@nameof(PipelineRun.Fin)" HeaderText="Fin" Type="ColumnType.DateTime" Format="g" Width="170"></GridColumn>
+        <GridColumn HeaderText="Tipo" Width="110" TextAlign="TextAlign.Center">
+            <Template Context="ctx">
+                @{ var r = (PipelineRun)ctx; }
+                <span class="e-badge @(r.EnvioId is null ? "e-badge-primary" : "e-badge-info")">
+                    @(r.EnvioId is null ? "Pipeline" : "Envio")
+                </span>
+            </Template>
+        </GridColumn>
+        <GridColumn HeaderText="Nombre">
+            <Template Context="ctx">
+                @{ var r = (PipelineRun)ctx; }
+                <strong>@Nombre(r)</strong>
+            </Template>
+        </GridColumn>
         <GridColumn HeaderText="Estado" Width="120" TextAlign="TextAlign.Center">
             <Template Context="ctx">
                 @{
@@ -29,14 +53,52 @@
                 <span class="e-badge @badge">@r.Estado</span>
             </Template>
         </GridColumn>
-        <GridColumn Field="@nameof(PipelineRun.FilasLeidas)" HeaderText="Leidas" Width="100"></GridColumn>
-        <GridColumn Field="@nameof(PipelineRun.FilasEscritas)" HeaderText="Escritas" Width="100"></GridColumn>
+        <GridColumn Field="@nameof(PipelineRun.FilasLeidas)" HeaderText="Leidas" Width="100" TextAlign="TextAlign.Right"></GridColumn>
+        <GridColumn Field="@nameof(PipelineRun.FilasEscritas)" HeaderText="Escritas" Width="100" TextAlign="TextAlign.Right"></GridColumn>
         <GridColumn Field="@nameof(PipelineRun.Mensaje)" HeaderText="Mensaje"></GridColumn>
     </GridColumns>
 </SfGrid>
 
-@code {
-    private List<PipelineRun> _items = new();
+<SfMessage Severity="MessageSeverity.Info" CssClass="mt-4">
+    <strong>Una sola tabla de historial.</strong> La corrida de envio reusa <span style="font-family:Consolas,monospace;">PipelineRun</span>
+    con un <span style="font-family:Consolas,monospace;">EnvioId</span> nullable. Se lee de corrido que el pipeline extrajo bien y el
+    envio no pudo entregar, que es un estado que antes no se podia expresar.
+</SfMessage>
 
-    protected override async Task OnInitializedAsync() => _items = await Runs.ObtenerRecientesAsync(50);
+@code {
+    private enum Filtro { Todas, Pipelines, Envios }
+
+    private List<PipelineRun> _items = new();
+    private Dictionary<Guid, string> _pipelines = new();
+    private Dictionary<Guid, string> _envios = new();
+    private Filtro _filtro = Filtro.Todas;
+
+    private IEnumerable<PipelineRun> Visibles => _filtro switch
+    {
+        Filtro.Pipelines => _items.Where(r => r.EnvioId is null),
+        Filtro.Envios => _items.Where(r => r.EnvioId is not null),
+        _ => _items
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        var corridas = Runs.ObtenerRecientesAsync(50);
+        var pipelines = Pipelines.ObtenerTodosAsync();
+        var envios = Envios.ObtenerTodosAsync();
+        await Task.WhenAll(corridas, pipelines, envios);
+
+        _items = corridas.Result;
+        _pipelines = pipelines.Result.ToDictionary(p => p.Id, p => p.Nombre);
+        _envios = envios.Result.ToDictionary(e => e.Id, e => e.Nombre);
+    }
+
+    // El nombre del envio si la corrida es de envio; si no, el del pipeline. Un envio borrado deja sus
+    // corridas en el historial: en ese caso se muestra el pipeline, que sigue existiendo.
+    private string Nombre(PipelineRun r)
+    {
+        if (r.EnvioId is Guid envioId && _envios.TryGetValue(envioId, out var envio)) return envio;
+        return _pipelines.TryGetValue(r.PipelineId, out var pipeline) ? pipeline : "(no existe)";
+    }
+
+    private string BotonFiltro(Filtro f) => _filtro == f ? "e-primary e-small" : "e-flat e-small";
 }
