@@ -8,6 +8,10 @@ public sealed class PipelineRun
 {
     public Guid Id { get; set; }
     public Guid PipelineId { get; set; }
+
+    // Fecha: 17/09/2026 - TAREA: 00038 - Linea: 2 - Encadenamiento pull/push: una sola tabla de
+    // historial. Null = corrida de pipeline; con valor = corrida de envio de ese pipeline.
+    public Guid? EnvioId { get; set; }
     public DateTime Inicio { get; set; }
     public DateTime? Fin { get; set; }
     public EstadoCorrida Estado { get; set; }

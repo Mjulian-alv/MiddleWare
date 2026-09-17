@@ -78,6 +78,27 @@ public static class MetadataSchemaInitializer
         )
         """,
         """CREATE INDEX IF NOT EXISTS "IX_Corridas_Inicio" ON "Corridas" ("Inicio")""",
+        // Fecha: 17/09/2026 - TAREA: 00038 - Linea: 1 - Envio a SQL externo: tabla Envios.
+        """
+        CREATE TABLE IF NOT EXISTS "Envios" (
+            "Id"               TEXT    NOT NULL CONSTRAINT "PK_Envios" PRIMARY KEY,
+            "Nombre"           TEXT    NOT NULL,
+            "Habilitado"       INTEGER NOT NULL DEFAULT 1,
+            "PipelineId"       TEXT    NOT NULL,
+            "DataSourceId"     TEXT    NOT NULL,
+            "TablaDestino"     TEXT    NOT NULL,
+            "Pendiente"        INTEGER NOT NULL DEFAULT 0,
+            "InicioEnCurso"    TEXT    NULL,
+            "UltimoCreado"     TEXT    NULL,
+            "IntentosFallidos" INTEGER NOT NULL DEFAULT 0,
+            "ProximoIntento"   TEXT    NULL,
+            "UltimoEnvio"      TEXT    NULL,
+            "UltimoError"      TEXT    NULL
+        )
+        """,
+        """CREATE UNIQUE INDEX IF NOT EXISTS "IX_Envios_Nombre"     ON "Envios" ("Nombre")""",
+        """CREATE INDEX        IF NOT EXISTS "IX_Envios_PipelineId" ON "Envios" ("PipelineId")""",
+        """CREATE INDEX        IF NOT EXISTS "IX_Envios_Pendiente"  ON "Envios" ("Pendiente")""",
         // Columnas agregadas despues del esquema inicial (auto-cura de bases viejas).
         // Sobre base nueva fallan con "duplicate column" (tragado). Requeridas llevan DEFAULT.
         """ALTER TABLE "Pipelines" ADD COLUMN "ColumnasClave"    TEXT NOT NULL DEFAULT '[]'""",
@@ -91,6 +112,9 @@ public static class MetadataSchemaInitializer
         """ALTER TABLE "Origenes"  ADD COLUMN "TieneEncabezado"      INTEGER NOT NULL DEFAULT 1""",
         """ALTER TABLE "Origenes"  ADD COLUMN "HojaExcel"            TEXT    NULL""",
         """ALTER TABLE "Pipelines" ADD COLUMN "ColumnaWatermarkTipo" TEXT    NULL""",
+        // Fecha: 17/09/2026 - TAREA: 00038 - Linea: 2 - Encadenamiento pull/push: EnvioId distingue
+        // la corrida de envio de la de pipeline en la misma tabla de historial.
+        """ALTER TABLE "Corridas"  ADD COLUMN "EnvioId"              TEXT    NULL""",
     };
 
     public static async Task EnsureAsync(DbConnection connection, ILogger? logger, CancellationToken ct = default)
