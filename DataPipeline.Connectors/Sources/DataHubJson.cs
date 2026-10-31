@@ -1,4 +1,4 @@
-// Fecha: 31/10/2026 - TAREA: 00152 - Linea: 1 - Origen DataHub CompLook: lectura en streaming de la
+﻿// Fecha: 31/10/2026 - TAREA: 00154 - Linea: 1 - Origen DataHub CompLook: lectura en streaming de la
 // respuesta de /api/query y conversion de valores segun el esquema declarado.
 // DataHub materializa el resultado completo antes de responder (es su contrato, no lo cambiamos),
 // pero de este lado NO se vuelve a materializar: el array "rows" se recorre con Utf8JsonReader sobre

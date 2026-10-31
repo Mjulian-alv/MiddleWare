@@ -1,4 +1,4 @@
-// Fecha: 31/10/2026 - TAREA: 00152 - Linea: 1 - Origen DataHub CompLook.
+﻿// Fecha: 31/10/2026 - TAREA: 00154 - Linea: 1 - Origen DataHub CompLook.
 // Lo que se prueba aca, por orden de lo que duele si se rompe:
 //   1. Una fila partida entre dos lecturas del stream NO se pierde (seria menos filas y cero errores).
 //   2. success:false con HTTP 200 corta la corrida (regla R6): mirar el status no alcanza.

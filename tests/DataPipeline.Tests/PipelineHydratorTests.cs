@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using DataPipeline.Connectors.Security;
 using DataPipeline.Core.DataSources;
 using DataPipeline.Core.Pipelines;
@@ -102,7 +102,7 @@ public class PipelineHydratorTests
         Assert.Equal("Datos", cfg["hojaExcel"].GetString());
     }
 
-    // Fecha: 31/10/2026 - TAREA: 00152 - Linea: 1 - Origen DataHub CompLook. Lo importante no es solo
+    // Fecha: 31/10/2026 - TAREA: 00154 - Linea: 1 - Origen DataHub CompLook. Lo importante no es solo
     // que inyecte lo suyo, sino que NO caiga por la rama de archivo: antes el hydrator era un if
     // binario y un tipo nuevo se iba a "archivo" con rutaCarpeta vacia, fallando recien al correr.
     [Fact]

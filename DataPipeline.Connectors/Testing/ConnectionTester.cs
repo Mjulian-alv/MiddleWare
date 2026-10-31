@@ -1,4 +1,4 @@
-using DataPipeline.Core.Abstractions;
+﻿using DataPipeline.Core.Abstractions;
 using Microsoft.Data.SqlClient;
 
 namespace DataPipeline.Connectors.Testing;
@@ -6,7 +6,7 @@ namespace DataPipeline.Connectors.Testing;
 /// <summary>Abre una conexion al origen y la cierra; cualquier excepcion -> Ok=false con el mensaje.</summary>
 public sealed class ConnectionTester : IConnectionTester
 {
-    // Fecha: 31/10/2026 - TAREA: 00152 - Linea: 3 - Probar un origen DataHub es pedirle el catalogo.
+    // Fecha: 31/10/2026 - TAREA: 00154 - Linea: 3 - Probar un origen DataHub es pedirle el catalogo.
     private readonly IDataHubCatalogo _catalogo;
 
     public ConnectionTester(IDataHubCatalogo? catalogo = null) => _catalogo = catalogo ?? new DataHubCatalogo();

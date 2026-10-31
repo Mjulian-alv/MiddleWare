@@ -64,7 +64,7 @@
                 </SfDropDownList>
             </div>
 
-            @* Fecha: 31/10/2026 - TAREA: 00152 - Linea: 4 - DataHub CompLook: URL + las dos credenciales,
+            @* Fecha: 31/10/2026 - TAREA: 00154 - Linea: 4 - DataHub CompLook: URL + las dos credenciales,
                cada una con su etiqueta de para que sirve. Que sean dos no es un capricho: GET /api/endpoints
                exige rol Admin de DataHub y /api/query valida contra las asignaciones del endpoint, donde el
                admin no pasa. Sin esta aclaracion en pantalla, cargar la misma en las dos es lo natural. *@
@@ -231,7 +231,7 @@
 @code {
     private sealed record OpcionTipo(int Valor, string Texto);
     // Fecha: 03/09/2026 - TAREA: 00015 - Linea: 1 - Origenes de archivo: Csv/Xlsx (mismo orden que TipoDataSource).
-    // Fecha: 31/10/2026 - TAREA: 00152 - Linea: 4 - DataHub CompLook (indice 3 = TipoDataSource.DataHubCompLook).
+    // Fecha: 31/10/2026 - TAREA: 00154 - Linea: 4 - DataHub CompLook (indice 3 = TipoDataSource.DataHubCompLook).
     private readonly List<OpcionTipo> _tipos = new()
     {
         new(0, "SqlServer"), new(1, "Csv"), new(2, "Xlsx"), new(3, "DataHub CompLook")
@@ -256,7 +256,7 @@
         public string Encoding { get; set; } = "UTF-8";
         public bool TieneEncabezado { get; set; } = true;
         public string? HojaExcel { get; set; }
-        // Fecha: 31/10/2026 - TAREA: 00152 - Linea: 4 - DataHub CompLook: URL + las DOS credenciales.
+        // Fecha: 31/10/2026 - TAREA: 00154 - Linea: 4 - DataHub CompLook: URL + las DOS credenciales.
         public string? BaseUrl { get; set; }
         public string? UsuarioCatalogo { get; set; }
         public string? PasswordCatalogo { get; set; }
@@ -285,7 +285,7 @@
         0 => "SqlServer", 1 => "Csv", 2 => "Xlsx", 3 => "DataHub CompLook", _ => tipo.ToString()
     };
 
-    // Fecha: 31/10/2026 - TAREA: 00152 - Linea: 4 - Nombres en vez de numeros sueltos: el "_form.Tipo
+    // Fecha: 31/10/2026 - TAREA: 00154 - Linea: 4 - Nombres en vez de numeros sueltos: el "_form.Tipo
     // == 1" repartido por el markup era justo lo que hacia facil olvidarse de un tipo nuevo.
     private const int TipoSqlServer = 0;
     private const int TipoCsv = 1;
@@ -328,7 +328,7 @@
     {
         _errorNombre = _errorForm = null;
         if (string.IsNullOrWhiteSpace(_form.Nombre)) { _errorNombre = "El nombre es obligatorio."; return; }
-        // Fecha: 31/10/2026 - TAREA: 00152 - Linea: 4 - La validacion era binaria ("si no es
+        // Fecha: 31/10/2026 - TAREA: 00154 - Linea: 4 - La validacion era binaria ("si no es
         // SqlServer, exigi carpeta"), asi que a un origen DataHub le pedia una carpeta de red.
         if (_form.Tipo == TipoSqlServer && _form.Id == Guid.Empty && string.IsNullOrWhiteSpace(_form.ConnectionString))
         {
@@ -395,7 +395,7 @@
         try
         {
             var r = await Origenes.ProbarAsync(id);
-            // Fecha: 31/10/2026 - TAREA: 00152 - Linea: 3 - Una prueba que sale bien ahora tiene algo
+            // Fecha: 31/10/2026 - TAREA: 00154 - Linea: 3 - Una prueba que sale bien ahora tiene algo
             // que contar (cuantos endpoints, de que motores): se muestra en vez de "Conexion exitosa".
             Mostrar(r.Ok, r.Ok
                 ? (string.IsNullOrWhiteSpace(r.Mensaje) ? "Conexion exitosa." : r.Mensaje!)

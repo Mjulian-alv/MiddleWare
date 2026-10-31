@@ -1,6 +1,76 @@
-# Historial — DataPipeline (MiddleWare)
+﻿# Historial — DataPipeline (MiddleWare)
 
 Registro de tareas ejecutadas en este repo, correlativas con `~/.claude/TAREAS.md`.
+
+## TAREA 00154 — 30-31/10/2026
+
+**Pedido (textual):** «deberiamos tomar desde d:\sistemas\consultasgenericas\api todos los tipos de
+conexion que tiene. porque tengo para probar casos reales pero con oracle.» Y después, el giro que
+cambió el alcance: «y si usamos la api de consultas genericas, anotalo que de ahora en adelante se
+llama datahub para futuras referencias. se podria para no hacer un gran trabajo ahora??», más «si te
+paso la url de la api. vos me traerias todos los endpoints que estan definidos en datahub para
+seleccionar y como hacemos para poner los parametros». El origen se llama **DataHub CompLook** por
+pedido explícito, para dejar libre el nombre de un conector REST genérico futuro.
+
+**Numeración — se renumeró dos veces.** Empezó como **00151**: lo tomó ConciliadorContable
+mientras se diseñaba, y se pasó a **00152** sin código escrito. Al cerrar, el 00152 también estaba
+tomado (ConsultasGenericas) y el 00153 igual (ArcaAutomatizacion), así que quedó en **00154**. El
+contenido —comentarios de versionado, carpeta de diseño, documentos— dice 00154. **Los mensajes de
+los cuatro commits de código siguen diciendo 00152**, por el mismo criterio que se usó en el choque
+00014/00015: no se reescriben commits ya hechos. El quinto commit es el de la renumeración.
+
+**Diseño:** `docs/Diseño/00154-origen-datahub/` (guía, flujograma y 7 maquetas).
+
+**Por qué no se portaron los drivers:** los contratos son incompatibles. DataPipeline lee en
+streaming (`IAsyncEnumerable<RecordBatch>`), DataHub materializa (`QueryResultDto`). No son
+adaptables uno al otro: había que reescribir siete ejecutores, no copiarlos. Consumir la API de
+DataHub alcanza a Oracle, MySQL, MariaDB, PostgreSQL y SQL Server con un solo conector.
+
+**Ejecutado (4 ítems, 4 commits):**
+
+- **Ítem 1 — El origen.** `TipoDataSource.DataHubCompLook`; `DataHubLector` recorre el array `rows`
+  con `Utf8JsonReader` sobre el stream, sin materializarlo; `DataHubSource` arma la llamada y
+  autentica. Conversión de valores por el esquema declarado, siempre con `InvariantCulture`.
+  `PipelineHydrator` pasa de `if SqlServer … else archivo` a `switch` exhaustivo.
+- **Ítem 2 — El catálogo.** `IDataHubCatalogo` + `GET /api/datasources/{id}/endpoints`. Filtra los
+  inactivos y mapea ruta, método, motor, parámetros declarados y `ResultSchemaJson`.
+- **Ítem 3 — Probar y traer columnas.** Las columnas salen del esquema que DataHub ya guardó, sin
+  ejecutar nada. `DataSourcesController.Probar`/`.Columnas` pasan a `switch` por tipo.
+- **Ítem 4 — Admin.** Diálogo del origen con las dos credenciales rotuladas; Paso 1 con combo de
+  endpoints, parámetros declarados y el watermark como no editable.
+
+**Tres bugs encontrados al construir, no al planificar:**
+
+1. **Fila partida entre dos lecturas del stream.** Al detectar que una fila no llegó entera, el
+   `StartObject` ya estaba consumido: esa fila se perdía **en silencio** — menos filas y ningún
+   error. Se retrocede el lector. Probado con cortes cada 1, 7, 13, 64 y 4096 bytes.
+2. **La regla R1 estaba mal.** Decía "mandar siempre el watermark". `ArmarParametros` de DataHub
+   mete en el comando **todos** los parámetros que recibe, estén o no en el SQL, así que uno de más
+   rompe la consulta (en Oracle, `ORA-01036`). Se manda exactamente lo que el endpoint declara.
+3. **`Editor.razor:434` tenía `_ => "SqlServerSource"`.** Un origen DataHub se guardaba con el
+   conector equivocado: no fallaba al guardar, fallaba al correr con un error de conexión que no
+   tenía nada que ver con la causa.
+
+**Verificación en el navegador** (lo que en tareas anteriores quedaba como «sin ver la pantalla»):
+se levantó un doble de DataHub que habla su mismo protocolo, incluido el reparto de credenciales
+(el admin no puede leer datos; el ApiUser no puede listar el catálogo). Se recorrió el circuito
+completo desde el Admin: alta del origen → Probar → catálogo → endpoint → parámetros → columnas →
+guardar → correr. **Primera corrida: 3 filas, con `watermark=` vacío en la URL. Segunda: 0 filas,
+con el watermark ya avanzado a `2026-10-30T16:44:00`.** Probando la pantalla apareció un cuarto
+hallazgo que las pruebas no veían: al editar un pipeline guardado no se mostraba qué endpoint tenía
+configurado. Corregido.
+
+**Lo que NO se probó:** un DataHub real y una base Oracle. Todo lo verificado es contra el doble.
+
+**Reparto con Codex:** no se pudo usar. El sandbox de Codex en esta máquina se bloquea a sí mismo
+(levanta sus propios helpers MCP, que toman los binarios del runtime, y después el paso de permisos
+falla sobre esos mismos archivos). Se diagnosticó y se arregló una causa real —la carpeta del repo
+había quedado **sin dueño**, y sin ser dueño no se pueden escribir ACLs—, pero quedó el bloqueo que
+Codex se produce solo. **El flujograma y las maquetas los hizo Claude**, y la revisión de la Etapa 4
+quedó pendiente: decide el dueño del pedido.
+
+**Estado:** 228 pruebas verdes, build Release sin errores. 4 commits en la rama
+`tarea-00154-origen-datahub`, sin mergear ni pushear.
 
 ## TAREA 00014 / TAREA 00015 — 03-05/09/2026
 

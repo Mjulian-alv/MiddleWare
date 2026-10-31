@@ -53,7 +53,7 @@ else
                     </SfDropDownList>
                 </div>
                 @* Fecha: 03/09/2026 - TAREA: 00015 - Linea: 1 - Origenes de archivo (Csv/Xlsx): Paso 1 reacciona al Tipo del origen elegido. *@
-                @* Fecha: 31/10/2026 - TAREA: 00152 - Linea: 2 - Tercera rama: DataHub. El endpoint se
+                @* Fecha: 31/10/2026 - TAREA: 00154 - Linea: 2 - Tercera rama: DataHub. El endpoint se
                    elige de un combo que sale del catalogo, y los parametros los declara el propio
                    endpoint, asi que no se escriben a mano: solo se cargan sus valores. *@
                 @if (EsOrigenDataHub)
@@ -84,7 +84,7 @@ else
                     }
                     else if (_endpoints.Count == 0 && !_catalogoCargando)
                     {
-                        @* Fecha: 31/10/2026 - TAREA: 00152 - Linea: 4 - Al editar un pipeline ya guardado
+                        @* Fecha: 31/10/2026 - TAREA: 00154 - Linea: 4 - Al editar un pipeline ya guardado
                            el catalogo todavia no se pidio, asi que sin esto la pantalla no mostraba QUE
                            endpoint tiene configurado: habia que apretar "Traer endpoints" para enterarse,
                            y si DataHub estaba caido no se enteraba nunca. *@
@@ -173,7 +173,7 @@ else
                     </div>
                 }
                 <div class="mt-2 mb-3 d-flex align-center gap-2">
-                    @* Fecha: 31/10/2026 - TAREA: 00152 - Linea: 3 - Para DataHub lo que hace falta es
+                    @* Fecha: 31/10/2026 - TAREA: 00154 - Linea: 3 - Para DataHub lo que hace falta es
                        el endpoint, no el SQL. *@
                     <SfButton CssClass="e-small" OnClick="@(() => TraerColumnas())"
                               Disabled="@(_form.DataSourceId is null
@@ -187,7 +187,7 @@ else
                     }
                 </div>
 
-                @* Fecha: 31/10/2026 - TAREA: 00152 - Linea: 3 - Fallback de la decision D3: el endpoint
+                @* Fecha: 31/10/2026 - TAREA: 00154 - Linea: 3 - Fallback de la decision D3: el endpoint
                    nunca paso una prueba en DataHub, asi que no hay esquema guardado que leer. Ejecutar
                    corre la consulta de verdad contra la base de ellos: por eso es un boton aparte y no
                    algo que pase solo. *@
@@ -221,7 +221,7 @@ else
                                 Si la columna es fecha, debe ser datetime/datetime2.
                             </div>
                         }
-                        @* Fecha: 31/10/2026 - TAREA: 00152 - Linea: 4 - Reglas R1 y R2: se cumplen en el
+                        @* Fecha: 31/10/2026 - TAREA: 00154 - Linea: 4 - Reglas R1 y R2: se cumplen en el
                            SQL del endpoint, del lado de DataHub, no aca. Van en pantalla porque son
                            justo las dos que se olvidan y cuestan una tarde de depuracion. *@
                         @if (EsOrigenDataHub)
@@ -424,7 +424,7 @@ else
         public int FilasPorLote { get; set; } = 5000;
         public Guid? DataSourceId { get; set; }
         public string Sql { get; set; } = "";
-        // Fecha: 31/10/2026 - TAREA: 00152 - Linea: 4 - Origen DataHub: endpoint elegido y los valores
+        // Fecha: 31/10/2026 - TAREA: 00154 - Linea: 4 - Origen DataHub: endpoint elegido y los valores
         // de los parametros que ese endpoint declara.
         public string Ruta { get; set; } = "";
         public List<KV> Parametros { get; set; } = new();
@@ -459,7 +459,7 @@ else
     private string? _error;
     private string? _columnasMsg;
 
-    // Fecha: 31/10/2026 - TAREA: 00152 - Linea: 2 - Estado del catalogo de endpoints de DataHub.
+    // Fecha: 31/10/2026 - TAREA: 00154 - Linea: 2 - Estado del catalogo de endpoints de DataHub.
     private List<EndpointDataHubDto> _endpoints = new();
     private bool _catalogoCargando;
     private string? _catalogoError;
@@ -508,7 +508,7 @@ else
     private void QuitarTransform(TransformForm t) => _form.Transforms.Remove(t);
 
     // Fecha: 03/09/2026 - TAREA: 00015 - Linea: 1 - Origenes de archivo: sin SQL, se lee el encabezado de la carpeta.
-    // Fecha: 31/10/2026 - TAREA: 00152 - Linea: 3 - DataHub: las columnas salen del esquema que DataHub
+    // Fecha: 31/10/2026 - TAREA: 00154 - Linea: 3 - DataHub: las columnas salen del esquema que DataHub
     // ya guardo, sin ejecutar nada. Y el error real deja de perderse: antes cualquier fallo se mostraba
     // con el mismo texto generico sobre el SQL o la carpeta, que para DataHub no queria decir nada.
     private async Task TraerColumnas(bool ejecutar = false)
@@ -539,7 +539,7 @@ else
             : $"{r.Columnas.Count} columnas.";
     }
 
-    // Fecha: 31/10/2026 - TAREA: 00152 - Linea: 2 - Catalogo de endpoints de DataHub.
+    // Fecha: 31/10/2026 - TAREA: 00154 - Linea: 2 - Catalogo de endpoints de DataHub.
     private async Task TraerCatalogo()
     {
         if (_form.DataSourceId is null || !EsOrigenDataHub) return;
@@ -604,7 +604,7 @@ else
     private int? TipoDataSourceElegido =>
         _datasources.FirstOrDefault(d => d.Id == _form.DataSourceId)?.Tipo;
 
-    // Fecha: 31/10/2026 - TAREA: 00152 - Linea: 4 - DataHub CompLook = 3. Antes todo lo que no fuera
+    // Fecha: 31/10/2026 - TAREA: 00154 - Linea: 4 - DataHub CompLook = 3. Antes todo lo que no fuera
     // Csv/Xlsx se trataba como SQL Server, asi que un origen DataHub pedia un SQL que nadie iba a usar.
     private bool EsOrigenDeArchivo => TipoDataSourceElegido is 1 or 2; // Csv=1, Xlsx=2 (ver DataSourcesAdminService)
     private bool EsOrigenDataHub => TipoDataSourceElegido is 3;
@@ -628,7 +628,7 @@ else
         if (string.IsNullOrWhiteSpace(_form.Nombre)) { _error = "El nombre es obligatorio."; return; }
         if (string.IsNullOrWhiteSpace(_form.TablaDestino)) { _error = "La tabla destino es obligatoria."; return; }
         // Fecha: 03/09/2026 - TAREA: 00015 - Linea: 1 - Origenes de archivo (Csv/Xlsx) no requieren SQL.
-        // Fecha: 31/10/2026 - TAREA: 00152 - Linea: 4 - DataHub pide endpoint, no SQL.
+        // Fecha: 31/10/2026 - TAREA: 00154 - Linea: 4 - DataHub pide endpoint, no SQL.
         if (_form.DataSourceId is not null && EsOrigenDataHub && string.IsNullOrWhiteSpace(_form.Ruta))
         {
             _error = "Elegi un endpoint de DataHub.";
@@ -670,7 +670,7 @@ else
         // columnaWatermark/tipoColumnaWatermark en la config del paso cuando hay watermark elegido. El
         // SourceFactory (Csv/Xlsx) lee esas dos claves via LeerStringOpcional para que FileSourceBase
         // pueda filtrar/tipar filas; sin esto el filtro quedaba como no-op aunque la UI dejara elegirlo.
-        // Fecha: 31/10/2026 - TAREA: 00152 - Linea: 4 - El switch tenia "_ => SqlServerSource", asi que
+        // Fecha: 31/10/2026 - TAREA: 00154 - Linea: 4 - El switch tenia "_ => SqlServerSource", asi que
         // un origen DataHub se guardaba como SqlServerSource. No fallaba al guardar: fallaba al correr,
         // con un error de conexion que no tenia nada que ver con la causa. Ahora cada tipo se nombra.
         var conector = TipoDataSourceElegido switch
@@ -802,7 +802,7 @@ else
             if (origen.Configuracion.TryGetValue("sql", out var sqlEl) && sqlEl.ValueKind == JsonValueKind.String)
                 _form.Sql = sqlEl.GetString() ?? "";
 
-            // Fecha: 31/10/2026 - TAREA: 00152 - Linea: 4 - Origen DataHub: ruta y parametros guardados.
+            // Fecha: 31/10/2026 - TAREA: 00154 - Linea: 4 - Origen DataHub: ruta y parametros guardados.
             if (origen.Configuracion.TryGetValue("ruta", out var rutaEl) && rutaEl.ValueKind == JsonValueKind.String)
                 _form.Ruta = rutaEl.GetString() ?? "";
             if (origen.Configuracion.TryGetValue("parametros", out var parEl) && parEl.ValueKind == JsonValueKind.Object)

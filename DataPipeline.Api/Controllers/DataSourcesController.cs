@@ -29,7 +29,7 @@ public sealed class DataSourcesController : ControllerBase
         _catalogo = catalogo;
     }
 
-    // Fecha: 31/10/2026 - TAREA: 00152 - Linea: 2 - Origen DataHub CompLook: BaseUrl se muestra (no
+    // Fecha: 31/10/2026 - TAREA: 00154 - Linea: 2 - Origen DataHub CompLook: BaseUrl se muestra (no
     // es secreto) y las dos credenciales viajan solo como "la tengo cargada", nunca su valor.
     public sealed record DataSourceVista(Guid Id, string Nombre, TipoDataSource Tipo, bool Activo,
         DateTime CreatedAt, DateTime? UpdatedAt, bool TieneConnectionString,
@@ -87,7 +87,7 @@ public sealed class DataSourcesController : ControllerBase
             Encoding = req.Encoding,
             TieneEncabezado = req.TieneEncabezado,
             HojaExcel = req.HojaExcel,
-            // Fecha: 31/10/2026 - TAREA: 00152 - Linea: 2 - Misma regla que los demas secretos:
+            // Fecha: 31/10/2026 - TAREA: 00154 - Linea: 2 - Misma regla que los demas secretos:
             // vacio en una edicion significa conservar el que ya estaba.
             UsuarioCatalogo = Secreto(req.UsuarioCatalogo, existente?.UsuarioCatalogo),
             PasswordCatalogo = Secreto(req.PasswordCatalogo, existente?.PasswordCatalogo),
@@ -99,7 +99,7 @@ public sealed class DataSourcesController : ControllerBase
         return Ok(new { ds.Id });
     }
 
-    // Fecha: 31/10/2026 - TAREA: 00152 - Linea: 2 - Catalogo de endpoints para elegir en el Admin.
+    // Fecha: 31/10/2026 - TAREA: 00154 - Linea: 2 - Catalogo de endpoints para elegir en el Admin.
     // Las credenciales nunca vuelven al cliente: se desencriptan aca y mueren en esta llamada.
     [HttpGet("{id:guid}/endpoints")]
     public async Task<IActionResult> Endpoints(Guid id, CancellationToken ct)
@@ -139,7 +139,7 @@ public sealed class DataSourcesController : ControllerBase
         var d = await _store.GetByIdAsync(id, ct);
         if (d is null) return NotFound();
 
-        // Fecha: 31/10/2026 - TAREA: 00152 - Linea: 3 - Esto era "si no es SqlServer, probalo como
+        // Fecha: 31/10/2026 - TAREA: 00154 - Linea: 3 - Esto era "si no es SqlServer, probalo como
         // archivo". Con un tercer tipo, un origen DataHub se probaba como carpeta de red y el error
         // hablaba de una ruta que nadie habia escrito. Ahora cada tipo tiene su rama.
         var r = d.Tipo switch
@@ -159,7 +159,7 @@ public sealed class DataSourcesController : ControllerBase
         var d = await _store.GetByIdAsync(id, ct);
         if (d is null) return NotFound();
 
-        // Fecha: 31/10/2026 - TAREA: 00152 - Linea: 3 - Mismo cambio que en Probar: switch por Tipo.
+        // Fecha: 31/10/2026 - TAREA: 00154 - Linea: 3 - Mismo cambio que en Probar: switch por Tipo.
         SchemaResult r;
         switch (d.Tipo)
         {

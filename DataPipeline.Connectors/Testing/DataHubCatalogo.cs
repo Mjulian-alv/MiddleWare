@@ -1,4 +1,4 @@
-// Fecha: 31/10/2026 - TAREA: 00152 - Linea: 2 - Catalogo de endpoints de DataHub.
+﻿// Fecha: 31/10/2026 - TAREA: 00154 - Linea: 2 - Catalogo de endpoints de DataHub.
 // GET /api/endpoints exige rol Admin en DataHub ([Authorize(Policy = Politicas.Admin)]), que NO es
 // la misma credencial con la que despues se leen los datos: /api/query valida a mano contra las
 // asignaciones del endpoint y el admin no pasa por ahi. De ahi que el origen guarde dos credenciales.

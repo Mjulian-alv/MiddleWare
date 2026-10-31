@@ -1,4 +1,4 @@
-using System.Data;
+﻿using System.Data;
 using DataPipeline.Connectors.Sources;
 using DataPipeline.Core.Abstractions;
 using DataPipeline.Core.DataSources;
@@ -15,7 +15,7 @@ namespace DataPipeline.Connectors.Testing;
 /// </summary>
 public sealed class SqlServerSchemaDiscoverer : ISchemaDiscoverer
 {
-    // Fecha: 31/10/2026 - TAREA: 00152 - Linea: 3 - El esquema de un endpoint sale del catalogo.
+    // Fecha: 31/10/2026 - TAREA: 00154 - Linea: 3 - El esquema de un endpoint sale del catalogo.
     private readonly IDataHubCatalogo _catalogo;
 
     public SqlServerSchemaDiscoverer(IDataHubCatalogo? catalogo = null) =>
@@ -76,7 +76,7 @@ public sealed class SqlServerSchemaDiscoverer : ISchemaDiscoverer
         }
     }
 
-    // Fecha: 31/10/2026 - TAREA: 00152 - Linea: 3 - Columnas de un endpoint de DataHub (decision D3).
+    // Fecha: 31/10/2026 - TAREA: 00154 - Linea: 3 - Columnas de un endpoint de DataHub (decision D3).
     // El camino barato es leer el ResultSchemaJson que DataHub ya guardo al probar el endpoint: no
     // ejecuta nada, no espera, no toca Oracle y no exige tener cargados los parametros obligatorios.
     public async Task<SchemaResult> DescubrirDataHubAsync(

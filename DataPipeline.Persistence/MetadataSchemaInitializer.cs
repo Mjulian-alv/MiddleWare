@@ -1,4 +1,4 @@
-using System.Data;
+﻿using System.Data;
 using System.Data.Common;
 using Microsoft.Extensions.Logging;
 
@@ -117,7 +117,7 @@ public static class MetadataSchemaInitializer
         // Fecha: 17/09/2026 - TAREA: 00038 - Linea: 2 - Encadenamiento pull/push: EnvioId distingue
         // la corrida de envio de la de pipeline en la misma tabla de historial.
         """ALTER TABLE "Corridas"  ADD COLUMN "EnvioId"              TEXT    NULL""",
-        // Fecha: 31/10/2026 - TAREA: 00152 - Linea: 2 - Origen DataHub CompLook: la credencial del
+        // Fecha: 31/10/2026 - TAREA: 00154 - Linea: 2 - Origen DataHub CompLook: la credencial del
         // catalogo es distinta de la de datos (ver DataSource), asi que son dos columnas aparte.
         """ALTER TABLE "Origenes"  ADD COLUMN "UsuarioCatalogo"      TEXT    NULL""",
         """ALTER TABLE "Origenes"  ADD COLUMN "PasswordCatalogo"     TEXT    NULL""",

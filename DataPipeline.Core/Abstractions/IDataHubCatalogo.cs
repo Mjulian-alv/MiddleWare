@@ -1,4 +1,4 @@
-// Fecha: 31/10/2026 - TAREA: 00152 - Linea: 2 - Catalogo de endpoints de DataHub.
+﻿// Fecha: 31/10/2026 - TAREA: 00154 - Linea: 2 - Catalogo de endpoints de DataHub.
 // Se consulta en diseno, no al correr: sirve para elegir endpoint y saber que parametros declara.
 namespace DataPipeline.Core.Abstractions;
 

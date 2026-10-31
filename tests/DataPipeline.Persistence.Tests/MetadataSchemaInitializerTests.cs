@@ -1,4 +1,4 @@
-using DataPipeline.Core.DataSources;
+﻿using DataPipeline.Core.DataSources;
 using DataPipeline.Core.Pipelines;
 using DataPipeline.Persistence;
 using Microsoft.Data.Sqlite;
@@ -120,7 +120,7 @@ public class MetadataSchemaInitializerTests
         Assert.Contains("UltimoWatermark", cols);
     }
 
-    // Fecha: 31/10/2026 - TAREA: 00152 - Linea: 2 - Origen DataHub CompLook: las dos columnas de la
+    // Fecha: 31/10/2026 - TAREA: 00154 - Linea: 2 - Origen DataHub CompLook: las dos columnas de la
     // credencial del catalogo tienen que existir y sobrevivir el ida y vuelta por EF.
     [Fact]
     public async Task Guarda_y_recupera_un_origen_DataHub_con_las_dos_credenciales()
@@ -156,7 +156,7 @@ public class MetadataSchemaInitializerTests
         Assert.Equal("enc-catalogo", leido.PasswordCatalogo);
     }
 
-    // Fecha: 31/10/2026 - TAREA: 00152 - Linea: 2 - Una base anterior a esta tarea no tiene las dos
+    // Fecha: 31/10/2026 - TAREA: 00154 - Linea: 2 - Una base anterior a esta tarea no tiene las dos
     // columnas nuevas: el ALTER tiene que agregarlas sin perder lo que ya habia.
     [Fact]
     public async Task Agrega_las_credenciales_de_catalogo_sobre_una_base_vieja()

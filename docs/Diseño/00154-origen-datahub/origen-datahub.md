@@ -1,7 +1,16 @@
-# Origen DataHub CompLook — diseño previo
+﻿# Origen DataHub CompLook — diseño previo
 
-> **TAREA:** 00152 · **Fecha:** 30/10/2026 · **Repo:** `D:\Sistemas\MiddleWare` (DataPipeline)
-> **Estado:** diseño, **sin implementar**.
+> **TAREA:** 00154 · **Fecha:** 30/10/2026 · **Repo:** `D:\Sistemas\MiddleWare` (DataPipeline)
+> **Estado:** **implementado** el 31/10/2026, en la rama `tarea-00154-origen-datahub`.
+>
+> Verificado contra un doble de DataHub que habla su mismo protocolo (incluido el reparto de
+> credenciales): catálogo → combo → parámetros declarados → columnas desde el esquema guardado →
+> corrida. Primera corrida 3 filas con `watermark=` vacío, segunda 0 filas con el watermark ya
+> avanzado. **No se probó contra un DataHub real ni contra Oracle.**
+>
+> Tres cosas que la implementación desmintió y que están corregidas en el texto: **R1** (no es
+> "mandar siempre el watermark"), **D4** (el tipo se persiste por nombre, no por índice) y **D6**
+> (nueva: "Probar" verifica la credencial del catálogo, no la de datos).
 >
 > El pedido original era "traer a DataPipeline todos los tipos de conexión de DataHub, con foco en
 > Oracle". Durante el diseño el pedido cambió: en vez de portar los drivers, **DataPipeline consume
@@ -259,7 +268,7 @@ nada que ver. Los cuatro pasan a ser `switch` exhaustivos sobre `TipoDataSource`
 | 5 | 3 | `IConnectionTester.ProbarDataHubAsync` e `ISchemaDiscoverer.DescubrirDataHubAsync` (**D3**) + el `switch` de `DataSourcesController` (**R8**) | Probar conexión contra DataHub caído, con credencial mala y OK; columnas con y sin `ResultSchemaJson` |
 | 6 | 2, 4 | Admin: los campos del origen, el combo de endpoints, el editor de parámetros y el `switch` de `Editor.razor` (**R8**) | Según las maquetas de §9 |
 
-Cada bloque lleva su comentario `Fecha: dd/MM/yyyy - TAREA: 00152 - Linea: N - …` con el ítem que lo
+Cada bloque lleva su comentario `Fecha: dd/MM/yyyy - TAREA: 00154 - Linea: N - …` con el ítem que lo
 originó.
 
 ---

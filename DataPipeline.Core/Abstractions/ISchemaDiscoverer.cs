@@ -1,4 +1,4 @@
-// Fecha: 03/09/2026 - TAREA: 00015 - Linea: 1 - Descubrimiento de columnas para origenes de archivo.
+﻿// Fecha: 03/09/2026 - TAREA: 00015 - Linea: 1 - Descubrimiento de columnas para origenes de archivo.
 using DataPipeline.Core.DataSources;
 using DataPipeline.Core.Pipelines;
 
@@ -15,7 +15,7 @@ public interface ISchemaDiscoverer
     /// <summary>Csv/Xlsx: lee el encabezado del archivo sin procesar mas nuevo de <paramref name="ds"/>.</summary>
     Task<SchemaResult> DescubrirArchivoAsync(DataSource ds, CancellationToken ct);
 
-    // Fecha: 31/10/2026 - TAREA: 00152 - Linea: 3 - Columnas de un endpoint de DataHub.
+    // Fecha: 31/10/2026 - TAREA: 00154 - Linea: 3 - Columnas de un endpoint de DataHub.
     /// <summary>
     /// Saca las columnas del <c>ResultSchemaJson</c> que DataHub ya tiene guardado, SIN ejecutar la
     /// consulta (decision D3). Si el endpoint nunca paso una prueba en DataHub no hay esquema:

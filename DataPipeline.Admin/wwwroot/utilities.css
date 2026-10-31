@@ -1,4 +1,4 @@
-/* ============================================================
+﻿/* ============================================================
    Sistema de diseño del Admin — Consultas Genéricas
    Variables, layout, paneles, encabezados y ajustes Syncfusion.
    Escala de espaciado: 1 unidad = 4px.
@@ -151,7 +151,7 @@ h1, h2, h3, h4, h5, h6 { margin-top: 0; margin-bottom: 0; color: var(--ink); }
 .texto-caption { font-size: .75rem; }
 .texto-secundario { color: var(--ink-2); }
 
-/* Fecha: 31/10/2026 - TAREA: 00152 - Linea: 4 - Metodo HTTP del endpoint de DataHub. GET y POST se
+/* Fecha: 31/10/2026 - TAREA: 00154 - Linea: 4 - Metodo HTTP del endpoint de DataHub. GET y POST se
    distinguen por color porque elegir el metodo equivocado da un 404 que habla de endpoint
    inexistente: el sintoma no se parece en nada a la causa. */
 .chip-metodo {
@@ -165,7 +165,7 @@ h1, h2, h3, h4, h5, h6 { margin-top: 0; margin-bottom: 0; color: var(--ink); }
 }
 .chip-metodo:not(:empty) { white-space: nowrap; }
 
-/* Fecha: 31/10/2026 - TAREA: 00152 - Linea: 4 - Un valor de solo lectura que tiene que parecerse a
+/* Fecha: 31/10/2026 - TAREA: 00154 - Linea: 4 - Un valor de solo lectura que tiene que parecerse a
    un campo con float label, para que no se lea como si faltara cargarlo. */
 .flabel-suelta {
     display: block;

@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using DataPipeline.Connectors.Sources;
 using DataPipeline.Core.Abstractions;
 using DataPipeline.Core.Pipelines;
@@ -36,7 +36,7 @@ public sealed class SourceFactory : ISourceFactory
                 LeerStringOpcional(step, "columnaWatermark"),
                 LeerStringOpcional(step, "tipoColumnaWatermark"),
                 LeerStringOpcional(step, "hojaExcel")),
-            // Fecha: 31/10/2026 - TAREA: 00152 - Linea: 1 - Origen DataHub CompLook. Las credenciales
+            // Fecha: 31/10/2026 - TAREA: 00154 - Linea: 1 - Origen DataHub CompLook. Las credenciales
             // llegan en texto plano: las desencripta PipelineHydrator antes de que corra la factory.
             "DataHubSource" => new DataHubSource(
                 LeerString(step, "baseUrl"),
@@ -63,7 +63,7 @@ public sealed class SourceFactory : ISourceFactory
     private static string? LeerStringOpcional(StepDefinition step, string clave) =>
         step.Configuracion.TryGetValue(clave, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() : null;
 
-    // Fecha: 31/10/2026 - TAREA: 00152 - Linea: 2 - Los parametros del endpoint viajan como objeto
+    // Fecha: 31/10/2026 - TAREA: 00154 - Linea: 2 - Los parametros del endpoint viajan como objeto
     // JSON {nombre: valor}. Todo se pasa como texto porque asi los recibe DataHub.
     private static IReadOnlyDictionary<string, string> LeerDiccionario(StepDefinition step, string clave)
     {

@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using DataPipeline.Core.Abstractions;
 using DataPipeline.Core.DataSources;
 using DataPipeline.Core.Pipelines;
@@ -37,7 +37,7 @@ public sealed class PipelineHydrator
             // Fecha: 03/09/2026 - TAREA: 00015 - Linea: 1 - Origenes de archivo: la config del paso
             // sale del DataSource (no hay secreto que desencriptar, a diferencia de connectionString).
             //
-            // Fecha: 31/10/2026 - TAREA: 00152 - Linea: 1 - Esto era "if SqlServer ... else archivo".
+            // Fecha: 31/10/2026 - TAREA: 00154 - Linea: 1 - Esto era "if SqlServer ... else archivo".
             // Con un tercer tipo esa forma binaria mandaba DataHub por la rama de archivo y le inyectaba
             // rutaCarpeta, fallando recien en la corrida y con un error que no hablaba del problema.
             // Ahora es un switch exhaustivo: un tipo nuevo que no este contemplado no compila.

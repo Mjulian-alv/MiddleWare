@@ -1,4 +1,4 @@
-// Fecha: 31/10/2026 - TAREA: 00152 - Linea: 1 - Origen DataHub CompLook.
+﻿// Fecha: 31/10/2026 - TAREA: 00154 - Linea: 1 - Origen DataHub CompLook.
 // Lee un endpoint de DataHub como origen del pipeline. El transporte es HTTP; el parseo y la
 // conversion de valores viven en DataHubJson, que se prueba sin IO.
 using System.Net.Http.Headers;

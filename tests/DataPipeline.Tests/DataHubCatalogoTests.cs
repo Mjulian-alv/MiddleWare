@@ -1,4 +1,4 @@
-// Fecha: 31/10/2026 - TAREA: 00152 - Linea: 2 - Catalogo de endpoints de DataHub.
+﻿// Fecha: 31/10/2026 - TAREA: 00154 - Linea: 2 - Catalogo de endpoints de DataHub.
 // El riesgo real aca es el mapeo: DataHub no configura JsonStringEnumConverter, asi que el tipo de
 // cada parametro viaja como NUMERO (0=Text, 1=Number, 2=Date, 3=DateTime). Si eso se lee mal, el
 // Admin dibuja el control equivocado y nadie se entera hasta que alguien carga una fecha a mano.

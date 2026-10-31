@@ -27,7 +27,7 @@ public class DataSourcesColumnasTests
     // assertar que Probar() rama por Tipo hacia el metodo correcto.
     private sealed class FakeTester : IConnectionTester
     {
-        // Fecha: 31/10/2026 - TAREA: 00152 - Linea: 3 - DataHubLlamado: el ruteo por Tipo ahora tiene
+        // Fecha: 31/10/2026 - TAREA: 00154 - Linea: 3 - DataHubLlamado: el ruteo por Tipo ahora tiene
         // tres ramas, y lo que importa es que un origen DataHub NO caiga en la de archivo.
         public bool SqlLlamado, ArchivoLlamado, DataHubLlamado;
         public Task<ConnectionResult> ProbarSqlServerAsync(string cs, CancellationToken ct)
@@ -58,7 +58,7 @@ public class DataSourcesColumnasTests
         public Task<SchemaResult> DescubrirArchivoAsync(DataSource ds, CancellationToken ct) =>
             Task.FromResult(_r);
 
-        // Fecha: 31/10/2026 - TAREA: 00152 - Linea: 3 - Columnas de un endpoint de DataHub.
+        // Fecha: 31/10/2026 - TAREA: 00154 - Linea: 3 - Columnas de un endpoint de DataHub.
         public bool DataHubLlamado;
         public string? RutaPedida;
         public bool EjecutarPedido;
@@ -73,7 +73,7 @@ public class DataSourcesColumnasTests
         }
     }
 
-    // Fecha: 31/10/2026 - TAREA: 00152 - Linea: 2 - Fake del catalogo de DataHub.
+    // Fecha: 31/10/2026 - TAREA: 00154 - Linea: 2 - Fake del catalogo de DataHub.
     private sealed class FakeCatalogo : IDataHubCatalogo
     {
         private readonly CatalogoResult _r;
@@ -175,7 +175,7 @@ public class DataSourcesColumnasTests
         Assert.False(tester.SqlLlamado);
     }
 
-    // Fecha: 31/10/2026 - TAREA: 00152 - Linea: 3 - El ruteo por Tipo era binario: todo lo que no
+    // Fecha: 31/10/2026 - TAREA: 00154 - Linea: 3 - El ruteo por Tipo era binario: todo lo que no
     // fuera SqlServer caia en la rama de archivo. Estas dos pruebas fijan que DataHub NO caiga ahi.
     [Fact]
     public async Task Probar_un_DataSource_DataHub_no_cae_en_la_rama_de_archivo()

@@ -1,11 +1,11 @@
-using System.Net.Http.Json;
+﻿using System.Net.Http.Json;
 using System.Text.Json;
 
 namespace DataPipeline.Admin.Services;
 
 // Fecha: 03/09/2026 - TAREA: 00015 - Linea: 1 - Origenes de archivo (Csv/Xlsx): campos de carpeta
 // en los DTOs (reemplazan FilePath, sin uso); TraerColumnasAsync no exige sql para archivo.
-// Fecha: 31/10/2026 - TAREA: 00152 - Linea: 2 - Origen DataHub CompLook: campos del origen, catalogo
+// Fecha: 31/10/2026 - TAREA: 00154 - Linea: 2 - Origen DataHub CompLook: campos del origen, catalogo
 // de endpoints, y el error de "traer columnas" deja de perderse (antes TraerColumnasAsync devolvia
 // null y el motivo real se tiraba a la basura, justo cuando mas hace falta leerlo).
 /// <summary>Vista de un DataSource (sin secretos; calca el shape que devuelve la API).</summary>
@@ -84,7 +84,7 @@ public class DataSourcesAdminService
             ?? new ProbarResp(false, "Respuesta vacia.", null);
     }
 
-    // Fecha: 31/10/2026 - TAREA: 00152 - Linea: 2 - Catalogo de endpoints de DataHub.
+    // Fecha: 31/10/2026 - TAREA: 00154 - Linea: 2 - Catalogo de endpoints de DataHub.
     public async Task<CatalogoResp> ObtenerEndpointsAsync(Guid id)
     {
         HttpResponseMessage r;
