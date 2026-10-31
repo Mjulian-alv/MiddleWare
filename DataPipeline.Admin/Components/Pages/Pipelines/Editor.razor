@@ -84,10 +84,27 @@ else
                     }
                     else if (_endpoints.Count == 0 && !_catalogoCargando)
                     {
-                        <div class="texto-caption texto-secundario mb-3">
-                            Toca "Traer endpoints" para ver los que DataHub tiene publicados. Si la lista
-                            vuelve vacia, hay que asignarle los endpoints en DataHub a la credencial de datos.
-                        </div>
+                        @* Fecha: 31/10/2026 - TAREA: 00152 - Linea: 4 - Al editar un pipeline ya guardado
+                           el catalogo todavia no se pidio, asi que sin esto la pantalla no mostraba QUE
+                           endpoint tiene configurado: habia que apretar "Traer endpoints" para enterarse,
+                           y si DataHub estaba caido no se enteraba nunca. *@
+                        @if (!string.IsNullOrWhiteSpace(_form.Ruta))
+                        {
+                            <div class="mb-3">
+                                <span class="flabel-suelta">Endpoint configurado</span>
+                                <div class="finput-suelto">@_form.Ruta</div>
+                                <div class="texto-caption texto-secundario mt-1">
+                                    Toca "Traer endpoints" para cambiarlo o para ver sus parametros.
+                                </div>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="texto-caption texto-secundario mb-3">
+                                Toca "Traer endpoints" para ver los que DataHub tiene publicados. Si la lista
+                                vuelve vacia, hay que asignarle los endpoints en DataHub a la credencial de datos.
+                            </div>
+                        }
                     }
                     else if (_endpoints.Count > 0)
                     {

@@ -165,6 +165,21 @@ h1, h2, h3, h4, h5, h6 { margin-top: 0; margin-bottom: 0; color: var(--ink); }
 }
 .chip-metodo:not(:empty) { white-space: nowrap; }
 
+/* Fecha: 31/10/2026 - TAREA: 00152 - Linea: 4 - Un valor de solo lectura que tiene que parecerse a
+   un campo con float label, para que no se lea como si faltara cargarlo. */
+.flabel-suelta {
+    display: block;
+    font-size: .72rem;
+    color: var(--ink-2);
+    margin-bottom: 3px;
+}
+.finput-suelto {
+    border-bottom: 1px solid #c8c8c8;
+    padding: 3px 0 6px;
+    font-size: .9rem;
+    color: var(--ink);
+}
+
 /* ── Bloques de código de ejemplo ── */
 .bloque-codigo {
     background: #f1f5f9;
