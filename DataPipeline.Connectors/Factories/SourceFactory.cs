@@ -36,6 +36,16 @@ public sealed class SourceFactory : ISourceFactory
                 LeerStringOpcional(step, "columnaWatermark"),
                 LeerStringOpcional(step, "tipoColumnaWatermark"),
                 LeerStringOpcional(step, "hojaExcel")),
+            // Fecha: 31/10/2026 - TAREA: 00152 - Linea: 1 - Origen DataHub CompLook. Las credenciales
+            // llegan en texto plano: las desencripta PipelineHydrator antes de que corra la factory.
+            "DataHubSource" => new DataHubSource(
+                LeerString(step, "baseUrl"),
+                LeerString(step, "ruta"),
+                LeerStringOpcional(step, "metodoHttp") ?? "GET",
+                LeerDiccionario(step, "parametros"),
+                LeerStringOpcional(step, "esquema"),
+                LeerStringOpcional(step, "usuario") ?? "",
+                LeerStringOpcional(step, "password") ?? ""),
             _ => throw new NotSupportedException($"Conector de origen no soportado: '{step.Conector}'.")
         };
     }
@@ -52,6 +62,26 @@ public sealed class SourceFactory : ISourceFactory
 
     private static string? LeerStringOpcional(StepDefinition step, string clave) =>
         step.Configuracion.TryGetValue(clave, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() : null;
+
+    // Fecha: 31/10/2026 - TAREA: 00152 - Linea: 2 - Los parametros del endpoint viajan como objeto
+    // JSON {nombre: valor}. Todo se pasa como texto porque asi los recibe DataHub.
+    private static IReadOnlyDictionary<string, string> LeerDiccionario(StepDefinition step, string clave)
+    {
+        var d = new Dictionary<string, string>(StringComparer.Ordinal);
+        if (!step.Configuracion.TryGetValue(clave, out var v) || v.ValueKind != JsonValueKind.Object)
+            return d;
+
+        foreach (var p in v.EnumerateObject())
+        {
+            d[p.Name] = p.Value.ValueKind switch
+            {
+                JsonValueKind.String => p.Value.GetString() ?? "",
+                JsonValueKind.Null or JsonValueKind.Undefined => "",
+                _ => p.Value.ToString()
+            };
+        }
+        return d;
+    }
 
     private static bool? LeerBoolOpcional(StepDefinition step, string clave) =>
         step.Configuracion.TryGetValue(clave, out var v) &&

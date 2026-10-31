@@ -33,6 +33,8 @@ public static class MetadataSchemaInitializer
             "Encoding"         TEXT    NULL,
             "TieneEncabezado"  INTEGER NOT NULL DEFAULT 1,
             "HojaExcel"        TEXT    NULL,
+            "UsuarioCatalogo"  TEXT    NULL,
+            "PasswordCatalogo" TEXT    NULL,
             "Activo"           INTEGER NOT NULL,
             "CreatedAt"        TEXT    NOT NULL,
             "UpdatedAt"        TEXT    NULL
@@ -115,6 +117,10 @@ public static class MetadataSchemaInitializer
         // Fecha: 17/09/2026 - TAREA: 00038 - Linea: 2 - Encadenamiento pull/push: EnvioId distingue
         // la corrida de envio de la de pipeline en la misma tabla de historial.
         """ALTER TABLE "Corridas"  ADD COLUMN "EnvioId"              TEXT    NULL""",
+        // Fecha: 31/10/2026 - TAREA: 00152 - Linea: 2 - Origen DataHub CompLook: la credencial del
+        // catalogo es distinta de la de datos (ver DataSource), asi que son dos columnas aparte.
+        """ALTER TABLE "Origenes"  ADD COLUMN "UsuarioCatalogo"      TEXT    NULL""",
+        """ALTER TABLE "Origenes"  ADD COLUMN "PasswordCatalogo"     TEXT    NULL""",
     };
 
     public static async Task EnsureAsync(DbConnection connection, ILogger? logger, CancellationToken ct = default)

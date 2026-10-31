@@ -101,4 +101,45 @@ public class PipelineHydratorTests
         var cfg = def.Pasos[0].Configuracion;
         Assert.Equal("Datos", cfg["hojaExcel"].GetString());
     }
+
+    // Fecha: 31/10/2026 - TAREA: 00152 - Linea: 1 - Origen DataHub CompLook. Lo importante no es solo
+    // que inyecte lo suyo, sino que NO caiga por la rama de archivo: antes el hydrator era un if
+    // binario y un tipo nuevo se iba a "archivo" con rutaCarpeta vacia, fallando recien al correr.
+    [Fact]
+    public async Task Inyecta_baseUrl_y_la_credencial_de_datos_desencriptada()
+    {
+        var enc = Enc();
+        var id = Guid.NewGuid();
+        var ds = new DataSource
+        {
+            Id = id, Nombre = "datahub", Tipo = TipoDataSource.DataHubCompLook,
+            BaseUrl = "http://srv-datahub:5000",
+            Username = enc.Encrypt("dataPipeline"),
+            Password = enc.Encrypt("secreta"),
+            UsuarioCatalogo = enc.Encrypt("consuAdmin"),
+            PasswordCatalogo = enc.Encrypt("otra")
+        };
+        var hydrator = new PipelineHydrator(new FakeDataSourceStore(ds), enc);
+
+        var def = new PipelineDefinition
+        {
+            Pasos = { new StepDefinition { Nombre = "leer", Tipo = TipoPaso.Origen, Conector = "DataHubSource",
+                Configuracion = new() { ["dataSourceId"] = S(id.ToString()), ["ruta"] = S("ventas/facturas") } } }
+        };
+
+        await hydrator.HydrateAsync(def, CancellationToken.None);
+
+        var cfg = def.Pasos[0].Configuracion;
+        Assert.Equal("http://srv-datahub:5000", cfg["baseUrl"].GetString());
+        Assert.Equal("dataPipeline", cfg["usuario"].GetString());
+        Assert.Equal("secreta", cfg["password"].GetString());
+
+        // La credencial del catalogo es de diseno: no tiene por que viajar a la corrida.
+        Assert.False(cfg.ContainsKey("usuarioCatalogo"));
+        Assert.False(cfg.ContainsKey("passwordCatalogo"));
+
+        // Y nada de la rama de archivo.
+        Assert.False(cfg.ContainsKey("rutaCarpeta"));
+        Assert.False(cfg.ContainsKey("patronArchivo"));
+    }
 }

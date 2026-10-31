@@ -77,4 +77,41 @@ public class SourceFactoryTests
 
         Assert.Throws<NotSupportedException>(() => factory.Create(step));
     }
+
+    // Fecha: 31/10/2026 - TAREA: 00152 - Linea: 1 - Origen DataHub CompLook.
+    [Fact]
+    public void Resuelve_DataHubSource()
+    {
+        var factory = new SourceFactory();
+        var step = new StepDefinition
+        {
+            Nombre = "leer", Tipo = TipoPaso.Origen, Conector = "DataHubSource",
+            Configuracion = new()
+            {
+                ["baseUrl"] = S("http://srv-datahub:5000"),
+                ["ruta"] = S("ventas/facturas"),
+                ["metodoHttp"] = S("GET"),
+                ["parametros"] = JsonSerializer.SerializeToElement(
+                    new Dictionary<string, string> { ["sucursal"] = "001", ["watermark"] = "" }),
+                ["esquema"] = S("""[{"name":"nro","dataType":"número"}]"""),
+                ["usuario"] = S("dataPipeline"),
+                ["password"] = S("secreta")
+            }
+        };
+
+        Assert.IsType<DataHubSource>(factory.Create(step));
+    }
+
+    [Fact]
+    public void DataHubSource_sin_ruta_lanza()
+    {
+        var factory = new SourceFactory();
+        var step = new StepDefinition
+        {
+            Nombre = "leer", Tipo = TipoPaso.Origen, Conector = "DataHubSource",
+            Configuracion = new() { ["baseUrl"] = S("http://srv-datahub:5000") }
+        };
+
+        Assert.Throws<ArgumentException>(() => factory.Create(step));
+    }
 }
