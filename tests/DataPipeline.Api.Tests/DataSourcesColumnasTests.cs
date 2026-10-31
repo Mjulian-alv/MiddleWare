@@ -1,4 +1,4 @@
-using DataPipeline.Api.Controllers;
+﻿using DataPipeline.Api.Controllers;
 using DataPipeline.Connectors.Security;
 using DataPipeline.Core.Abstractions;
 using DataPipeline.Core.DataSources;
@@ -27,7 +27,9 @@ public class DataSourcesColumnasTests
     // assertar que Probar() rama por Tipo hacia el metodo correcto.
     private sealed class FakeTester : IConnectionTester
     {
-        public bool SqlLlamado, ArchivoLlamado;
+        // Fecha: 31/10/2026 - TAREA: 00152 - Linea: 3 - DataHubLlamado: el ruteo por Tipo ahora tiene
+        // tres ramas, y lo que importa es que un origen DataHub NO caiga en la de archivo.
+        public bool SqlLlamado, ArchivoLlamado, DataHubLlamado;
         public Task<ConnectionResult> ProbarSqlServerAsync(string cs, CancellationToken ct)
         {
             SqlLlamado = true;
@@ -37,6 +39,11 @@ public class DataSourcesColumnasTests
         {
             ArchivoLlamado = true;
             return Task.FromResult(new ConnectionResult(true, null));
+        }
+        public Task<ConnectionResult> ProbarDataHubAsync(OrigenDataHub origen, CancellationToken ct)
+        {
+            DataHubLlamado = true;
+            return Task.FromResult(new ConnectionResult(true, null, "Catalogo OK: 3 endpoint(s)"));
         }
     }
 
@@ -50,6 +57,40 @@ public class DataSourcesColumnasTests
         // Fecha: 03/09/2026 - TAREA: 00015 - Linea: 1 - implementacion minima para no romper el fake.
         public Task<SchemaResult> DescubrirArchivoAsync(DataSource ds, CancellationToken ct) =>
             Task.FromResult(_r);
+
+        // Fecha: 31/10/2026 - TAREA: 00152 - Linea: 3 - Columnas de un endpoint de DataHub.
+        public bool DataHubLlamado;
+        public string? RutaPedida;
+        public bool EjecutarPedido;
+        public Task<SchemaResult> DescubrirDataHubAsync(
+            OrigenDataHub origen, string ruta, IReadOnlyDictionary<string, string>? parametros,
+            bool ejecutarSiFaltaEsquema, CancellationToken ct)
+        {
+            DataHubLlamado = true;
+            RutaPedida = ruta;
+            EjecutarPedido = ejecutarSiFaltaEsquema;
+            return Task.FromResult(_r);
+        }
+    }
+
+    // Fecha: 31/10/2026 - TAREA: 00152 - Linea: 2 - Fake del catalogo de DataHub.
+    private sealed class FakeCatalogo : IDataHubCatalogo
+    {
+        private readonly CatalogoResult _r;
+        public FakeCatalogo(CatalogoResult? r = null) =>
+            _r = r ?? new CatalogoResult(true, new List<EndpointDataHub>
+            {
+                new("ventas/facturas", "GET", "Facturas emitidas", "Oracle - Produccion",
+                    new List<ParametroEndpoint>
+                    {
+                        new("sucursal", "texto", "Sucursal", null, true),
+                        new("watermark", "fechaHora", "Watermark", null, false)
+                    },
+                    """[{"name":"nro_factura","dataType":"texto"}]""")
+            }, null);
+
+        public Task<CatalogoResult> ListarAsync(string baseUrl, string u, string p, CancellationToken ct) =>
+            Task.FromResult(_r);
     }
 
     private static DataSourcesController Controller(DataSource? ds, SchemaResult r)
@@ -57,7 +98,8 @@ public class DataSourcesColumnasTests
         var enc = Enc();
         if (ds is not null && !string.IsNullOrEmpty(ds.ConnectionString))
             ds.ConnectionString = enc.Encrypt(ds.ConnectionString); // el controller desencripta
-        return new DataSourcesController(new FakeDsStore(ds), enc, new FakeTester(), new FakeDiscoverer(r));
+        return new DataSourcesController(new FakeDsStore(ds), enc, new FakeTester(),
+            new FakeDiscoverer(r), new FakeCatalogo());
     }
 
     // Fecha: 03/09/2026 - TAREA: 00015 - Linea: 1 - helper que expone el FakeTester usado, para
@@ -68,7 +110,8 @@ public class DataSourcesColumnasTests
         if (ds is not null && !string.IsNullOrEmpty(ds.ConnectionString))
             ds.ConnectionString = enc.Encrypt(ds.ConnectionString);
         var tester = new FakeTester();
-        return (new DataSourcesController(new FakeDsStore(ds), enc, tester, new FakeDiscoverer(r)), tester);
+        return (new DataSourcesController(new FakeDsStore(ds), enc, tester,
+            new FakeDiscoverer(r), new FakeCatalogo()), tester);
     }
 
     [Fact]
@@ -130,5 +173,69 @@ public class DataSourcesColumnasTests
         Assert.IsType<OkObjectResult>(res);
         Assert.True(tester.ArchivoLlamado);
         Assert.False(tester.SqlLlamado);
+    }
+
+    // Fecha: 31/10/2026 - TAREA: 00152 - Linea: 3 - El ruteo por Tipo era binario: todo lo que no
+    // fuera SqlServer caia en la rama de archivo. Estas dos pruebas fijan que DataHub NO caiga ahi.
+    [Fact]
+    public async Task Probar_un_DataSource_DataHub_no_cae_en_la_rama_de_archivo()
+    {
+        var ds = new DataSource
+        {
+            Id = Guid.NewGuid(), Nombre = "dh", Tipo = TipoDataSource.DataHubCompLook,
+            BaseUrl = "http://srv-datahub:5000"
+        };
+        var (ctrl, tester) = ControllerConTester(ds, new SchemaResult(true, new List<ColumnaOrigen>(), null));
+
+        var res = await ctrl.Probar(ds.Id, CancellationToken.None);
+
+        Assert.IsType<OkObjectResult>(res);
+        Assert.True(tester.DataHubLlamado);
+        Assert.False(tester.ArchivoLlamado);
+        Assert.False(tester.SqlLlamado);
+    }
+
+    [Fact]
+    public async Task Columnas_de_un_DataHub_sin_endpoint_elegido_responde_400()
+    {
+        var ds = new DataSource
+        {
+            Id = Guid.NewGuid(), Nombre = "dh", Tipo = TipoDataSource.DataHubCompLook,
+            BaseUrl = "http://srv-datahub:5000"
+        };
+        var ctrl = Controller(ds, new SchemaResult(true, new List<ColumnaOrigen>(), null));
+
+        var res = await ctrl.Columnas(ds.Id, new DataSourcesController.ColumnasReq(null), CancellationToken.None);
+
+        Assert.IsType<BadRequestObjectResult>(res);
+    }
+
+    [Fact]
+    public async Task El_catalogo_solo_se_pide_para_origenes_DataHub()
+    {
+        var ds = new DataSource { Id = Guid.NewGuid(), Nombre = "sql", Tipo = TipoDataSource.SqlServer };
+        var ctrl = Controller(ds, new SchemaResult(true, new List<ColumnaOrigen>(), null));
+
+        Assert.IsType<BadRequestObjectResult>(await ctrl.Endpoints(ds.Id, CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task El_catalogo_devuelve_los_endpoints_con_sus_parametros()
+    {
+        var ds = new DataSource
+        {
+            Id = Guid.NewGuid(), Nombre = "dh", Tipo = TipoDataSource.DataHubCompLook,
+            BaseUrl = "http://srv-datahub:5000"
+        };
+        var ctrl = Controller(ds, new SchemaResult(true, new List<ColumnaOrigen>(), null));
+
+        var ok = Assert.IsType<OkObjectResult>(await ctrl.Endpoints(ds.Id, CancellationToken.None));
+        var lista = Assert.IsAssignableFrom<IReadOnlyList<EndpointDataHub>>(ok.Value);
+
+        Assert.Single(lista);
+        Assert.Equal("ventas/facturas", lista[0].Ruta);
+        Assert.Equal("Oracle - Produccion", lista[0].Motor);
+        Assert.Equal(2, lista[0].Parametros.Count);
+        Assert.Contains(lista[0].Parametros, p => p.Nombre == "watermark");
     }
 }

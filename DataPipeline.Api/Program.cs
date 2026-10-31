@@ -21,6 +21,8 @@ builder.Services.AddScoped<IHistorialCorridas, EfHistorialCorridas>();
 builder.Services.AddScoped<IDataSourceStore, EfDataSourceStore>();
 builder.Services.AddScoped<IConnectionTester, DataPipeline.Connectors.Testing.ConnectionTester>();
 builder.Services.AddScoped<ISchemaDiscoverer, DataPipeline.Connectors.Testing.SqlServerSchemaDiscoverer>();
+// Fecha: 31/10/2026 - TAREA: 00152 - Linea: 2 - Catalogo de endpoints de DataHub.
+builder.Services.AddScoped<IDataHubCatalogo, DataPipeline.Connectors.Testing.DataHubCatalogo>();
 builder.Services.AddScoped<ISourceFactory, SourceFactory>();
 builder.Services.AddScoped<ITransformFactory, TransformFactory>();
 builder.Services.AddScoped<IDataStore>(_ => new SqliteDataStore(dataCs));
