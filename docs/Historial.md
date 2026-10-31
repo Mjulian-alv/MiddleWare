@@ -62,7 +62,17 @@ configurado. Corregido.
 
 **Lo que NO se probó:** un DataHub real y una base Oracle. Todo lo verificado es contra el doble.
 
-**Reparto con Codex:** no se pudo usar. El sandbox de Codex en esta máquina se bloquea a sí mismo
+**Revisión de Codex (ronda 1):** `docs/Revisiones/00154-review-1.md`. **Cinco hallazgos, los cinco
+corregidos.** Los dos que más importan: el endpoint se identificaba sólo por la ruta, cuando DataHub
+lo busca por ruta **y** método (la misma ruta puede estar publicada como GET y como POST); y editar
+un pipeline guardado le cambiaba el método a GET y le borraba el esquema, en silencio, porque al
+cargar no se restauraban esos dos campos y al guardar se reescribían igual. Codex no encontró nada
+en seguridad ni en el parseo en streaming. 233 pruebas (+5 de regresión).
+
+Para correrla hubo que sortear el sandbox: se le pegó la guía y los 144 KB del diff en el prompt, así
+no necesitó terminal, ni GitHub, ni aflojar permisos.
+
+**Reparto con Codex (diseño):** no se pudo usar. El sandbox de Codex en esta máquina se bloquea a sí mismo
 (levanta sus propios helpers MCP, que toman los binarios del runtime, y después el paso de permisos
 falla sobre esos mismos archivos). Se diagnosticó y se arregló una causa real —la carpeta del repo
 había quedado **sin dueño**, y sin ser dueño no se pueden escribir ACLs—, pero quedó el bloqueo que
