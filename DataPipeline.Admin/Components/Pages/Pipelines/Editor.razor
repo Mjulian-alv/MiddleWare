@@ -1,4 +1,4 @@
-@page "/pipelines/nuevo"
+﻿@page "/pipelines/nuevo"
 @page "/pipelines/editar/{Id:guid}"
 @inject PipelinesAdminService Pipelines
 @inject DataSourcesAdminService Origenes
@@ -53,7 +53,97 @@ else
                     </SfDropDownList>
                 </div>
                 @* Fecha: 03/09/2026 - TAREA: 00015 - Linea: 1 - Origenes de archivo (Csv/Xlsx): Paso 1 reacciona al Tipo del origen elegido. *@
-                @if (!EsOrigenDeArchivo)
+                @* Fecha: 31/10/2026 - TAREA: 00152 - Linea: 2 - Tercera rama: DataHub. El endpoint se
+                   elige de un combo que sale del catalogo, y los parametros los declara el propio
+                   endpoint, asi que no se escriben a mano: solo se cargan sus valores. *@
+                @if (EsOrigenDataHub)
+                {
+                    <div class="mb-3 d-flex align-center gap-2">
+                        <SfButton CssClass="e-small" OnClick="TraerCatalogo" Disabled="_catalogoCargando">
+                            @(_catalogoCargando ? "Trayendo el catalogo..." : "Traer endpoints")
+                        </SfButton>
+                        @if (_endpoints.Count > 0)
+                        {
+                            <span class="texto-caption texto-secundario">@_endpoints.Count endpoint(s) para elegir.</span>
+                        }
+                    </div>
+
+                    @if (_catalogoError is not null)
+                    {
+                        <SfMessage Severity="MessageSeverity.Error" CssClass="mb-3">
+                            <b>No se pudo traer el catalogo.</b><br />@_catalogoError
+                        </SfMessage>
+                        <div class="mb-3">
+                            <SfTextBox Placeholder="Ruta del endpoint (a mano)" FloatLabelType="FloatLabelType.Always"
+                                       @bind-Value="_form.Ruta" />
+                            <div class="texto-caption texto-secundario mt-1">
+                                Mientras el catalogo no responda se puede escribir la ruta, pero sin el los
+                                parametros y el esquema hay que cargarlos a mano.
+                            </div>
+                        </div>
+                    }
+                    else if (_endpoints.Count == 0 && !_catalogoCargando)
+                    {
+                        <div class="texto-caption texto-secundario mb-3">
+                            Toca "Traer endpoints" para ver los que DataHub tiene publicados. Si la lista
+                            vuelve vacia, hay que asignarle los endpoints en DataHub a la credencial de datos.
+                        </div>
+                    }
+                    else if (_endpoints.Count > 0)
+                    {
+                        <div class="mb-3">
+                            <SfDropDownList TValue="string" TItem="EndpointDataHubDto" DataSource="_endpoints"
+                                            @bind-Value="_form.Ruta" Placeholder="Endpoint *"
+                                            FloatLabelType="FloatLabelType.Always" AllowFiltering="true">
+                                <DropDownListFieldSettings Value="Ruta" Text="Ruta"></DropDownListFieldSettings>
+                                <DropDownListEvents TValue="string" TItem="EndpointDataHubDto" ValueChange="@((Syncfusion.Blazor.DropDowns.ChangeEventArgs<string, EndpointDataHubDto> _) => EndpointCambio())"></DropDownListEvents>
+                            </SfDropDownList>
+                        </div>
+
+                        @if (EndpointElegido is not null)
+                        {
+                            <div class="d-flex flex-wrap gap-2 mb-3 align-center">
+                                <span class="chip-metodo">@EndpointElegido.MetodoHttp</span>
+                                <span class="texto-caption texto-secundario">@EndpointElegido.Motor</span>
+                                @if (!string.IsNullOrWhiteSpace(EndpointElegido.Descripcion))
+                                {
+                                    <span class="texto-caption texto-secundario">— @EndpointElegido.Descripcion</span>
+                                }
+                            </div>
+
+                            @if (_form.Parametros.Count > 0)
+                            {
+                                <div class="texto-caption texto-secundario mb-2" style="font-weight:700;letter-spacing:.04em;">
+                                    PARAMETROS DEL ENDPOINT
+                                </div>
+                                @foreach (var par in _form.Parametros)
+                                {
+                                    var decl = EndpointElegido.Parametros.FirstOrDefault(x => x.Nombre == par.Clave);
+                                    <div class="d-flex align-center gap-2 mb-2">
+                                        <div style="width:140px;font-size:.82rem;font-weight:600;">@par.Clave</div>
+                                        <div style="width:90px;" class="texto-caption texto-secundario">@(decl?.Tipo ?? "texto")</div>
+                                        @if (EsWatermark(par.Clave))
+                                        {
+                                            @* El watermark lo completa la corrida: cargarlo a mano congelaria la carga incremental. *@
+                                            <span class="texto-caption texto-secundario">
+                                                lo completa la corrida — vacio en la primera
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <div class="flex-grow-1">
+                                                <SfTextBox Placeholder="@(decl?.Etiqueta ?? par.Clave)"
+                                                           FloatLabelType="FloatLabelType.Never"
+                                                           @bind-Value="par.Valor" />
+                                            </div>
+                                        }
+                                    </div>
+                                }
+                            }
+                        }
+                    }
+                }
+                else if (EsOrigenSql)
                 {
                     <div class="mb-1">
                         <SfTextBox Placeholder="SQL *" FloatLabelType="FloatLabelType.Always" Multiline="true" @bind-Value="_form.Sql" />
@@ -66,8 +156,12 @@ else
                     </div>
                 }
                 <div class="mt-2 mb-3 d-flex align-center gap-2">
-                    <SfButton CssClass="e-small" OnClick="TraerColumnas"
-                              Disabled="@(_form.DataSourceId is null || (!EsOrigenDeArchivo && string.IsNullOrWhiteSpace(_form.Sql)))">
+                    @* Fecha: 31/10/2026 - TAREA: 00152 - Linea: 3 - Para DataHub lo que hace falta es
+                       el endpoint, no el SQL. *@
+                    <SfButton CssClass="e-small" OnClick="@(() => TraerColumnas())"
+                              Disabled="@(_form.DataSourceId is null
+                                          || (EsOrigenSql && string.IsNullOrWhiteSpace(_form.Sql))
+                                          || (EsOrigenDataHub && string.IsNullOrWhiteSpace(_form.Ruta)))">
                         Traer columnas
                     </SfButton>
                     @if (_columnasMsg is not null)
@@ -75,6 +169,23 @@ else
                         <span class="texto-caption texto-secundario">@_columnasMsg</span>
                     }
                 </div>
+
+                @* Fecha: 31/10/2026 - TAREA: 00152 - Linea: 3 - Fallback de la decision D3: el endpoint
+                   nunca paso una prueba en DataHub, asi que no hay esquema guardado que leer. Ejecutar
+                   corre la consulta de verdad contra la base de ellos: por eso es un boton aparte y no
+                   algo que pase solo. *@
+                @if (_faltaEsquema)
+                {
+                    <div class="mb-3">
+                        <SfButton CssClass="e-small e-outline" OnClick="@(() => TraerColumnas(true))">
+                            Ejecutar la consulta para descubrir las columnas
+                        </SfButton>
+                        <div class="texto-caption texto-secundario mt-1">
+                            Corre el endpoint de verdad, con los parametros cargados. Lo barato es probarlo
+                            una vez en DataHub: ahi queda guardado y sirve para todos los pipelines.
+                        </div>
+                    </div>
+                }
                 @if (_form.EsquemaOrigen.Count > 0)
                 {
                     <div class="d-flex flex-wrap gap-2 mb-3">
@@ -86,11 +197,25 @@ else
                     <div class="mb-1">
                         <SfDropDownList TValue="string" TItem="string" DataSource="NombresColumnas" @bind-Value="_form.ColumnaWatermark"
                                         Placeholder="Columna watermark (opcional)" FloatLabelType="FloatLabelType.Always" AllowFiltering="true" />
-                        @if (!EsOrigenDeArchivo)
+                        @if (EsOrigenSql)
                         {
                             <div class="texto-caption texto-secundario mt-1">
                                 Tu SQL debe filtrar con @@watermark (ej. WHERE @@watermark IS NULL OR fecha_mod &gt; @@watermark).
                                 Si la columna es fecha, debe ser datetime/datetime2.
+                            </div>
+                        }
+                        @* Fecha: 31/10/2026 - TAREA: 00152 - Linea: 4 - Reglas R1 y R2: se cumplen en el
+                           SQL del endpoint, del lado de DataHub, no aca. Van en pantalla porque son
+                           justo las dos que se olvidan y cuestan una tarde de depuracion. *@
+                        @if (EsOrigenDataHub)
+                        {
+                            <div class="texto-caption texto-secundario mt-1">
+                                El SQL del endpoint, <b>en DataHub</b>, tiene que tratar el watermark vacio como
+                                primera corrida — vacio no es NULL:<br />
+                                <code>WHERE :watermark IS NULL OR :watermark = '' OR fecha_mod &gt; ...</code><br />
+                                Y como a Oracle los parametros llegan como texto, la comparacion necesita
+                                conversion explicita:<br />
+                                <code>AND fecha_mod &gt; TO_DATE(:watermark, 'YYYY-MM-DD HH24:MI:SS')</code>
                             </div>
                         }
                     </div>
@@ -282,6 +407,10 @@ else
         public int FilasPorLote { get; set; } = 5000;
         public Guid? DataSourceId { get; set; }
         public string Sql { get; set; } = "";
+        // Fecha: 31/10/2026 - TAREA: 00152 - Linea: 4 - Origen DataHub: endpoint elegido y los valores
+        // de los parametros que ese endpoint declara.
+        public string Ruta { get; set; } = "";
+        public List<KV> Parametros { get; set; } = new();
         public List<TransformForm> Transforms { get; set; } = new();
     }
 
@@ -312,6 +441,12 @@ else
     private bool _guardando;
     private string? _error;
     private string? _columnasMsg;
+
+    // Fecha: 31/10/2026 - TAREA: 00152 - Linea: 2 - Estado del catalogo de endpoints de DataHub.
+    private List<EndpointDataHubDto> _endpoints = new();
+    private bool _catalogoCargando;
+    private string? _catalogoError;
+    private bool _faltaEsquema;
 
     private int _pasoActivo = 1;
 
@@ -356,17 +491,94 @@ else
     private void QuitarTransform(TransformForm t) => _form.Transforms.Remove(t);
 
     // Fecha: 03/09/2026 - TAREA: 00015 - Linea: 1 - Origenes de archivo: sin SQL, se lee el encabezado de la carpeta.
-    private async Task TraerColumnas()
+    // Fecha: 31/10/2026 - TAREA: 00152 - Linea: 3 - DataHub: las columnas salen del esquema que DataHub
+    // ya guardo, sin ejecutar nada. Y el error real deja de perderse: antes cualquier fallo se mostraba
+    // con el mismo texto generico sobre el SQL o la carpeta, que para DataHub no queria decir nada.
+    private async Task TraerColumnas(bool ejecutar = false)
     {
-        _columnasMsg = "Trayendo...";
-        var cols = await Origenes.TraerColumnasAsync(_form.DataSourceId!.Value, EsOrigenDeArchivo ? null : _form.Sql);
-        if (cols is null)
+        _columnasMsg = ejecutar ? "Ejecutando la consulta..." : "Trayendo...";
+        _faltaEsquema = false;
+
+        var r = await Origenes.TraerColumnasAsync(
+            _form.DataSourceId!.Value,
+            EsOrigenSql ? _form.Sql : null,
+            EsOrigenDataHub ? _form.Ruta : null,
+            EsOrigenDataHub ? ValoresDeParametros() : null,
+            ejecutar);
+
+        if (!r.Ok)
         {
-            _columnasMsg = "No se pudieron traer las columnas (revisa el SQL/la conexion, o que haya archivos en la carpeta).";
+            _columnasMsg = r.Error ?? "No se pudieron traer las columnas.";
+            // Si el endpoint nunca paso una prueba en DataHub no hay esquema guardado: ahi se ofrece
+            // el ultimo recurso de ejecutar la consulta, que es lo unico que queda.
+            _faltaEsquema = EsOrigenDataHub && !ejecutar
+                && (r.Error?.Contains("esquema guardado", StringComparison.OrdinalIgnoreCase) ?? false);
             return;
         }
-        _form.EsquemaOrigen = cols;
-        _columnasMsg = $"{cols.Count} columnas.";
+
+        _form.EsquemaOrigen = r.Columnas;
+        _columnasMsg = EsOrigenDataHub && !ejecutar
+            ? $"{r.Columnas.Count} columnas, del esquema guardado en DataHub. No se ejecuto la consulta."
+            : $"{r.Columnas.Count} columnas.";
+    }
+
+    // Fecha: 31/10/2026 - TAREA: 00152 - Linea: 2 - Catalogo de endpoints de DataHub.
+    private async Task TraerCatalogo()
+    {
+        if (_form.DataSourceId is null || !EsOrigenDataHub) return;
+
+        _catalogoCargando = true;
+        _catalogoError = null;
+        try
+        {
+            var r = await Origenes.ObtenerEndpointsAsync(_form.DataSourceId.Value);
+            if (!r.Ok)
+            {
+                _endpoints = new();
+                _catalogoError = r.Error;
+                return;
+            }
+            _endpoints = r.Endpoints;
+            SincronizarParametros();
+        }
+        finally { _catalogoCargando = false; }
+    }
+
+    /// <summary>
+    /// Deja una fila por cada parametro que DECLARA el endpoint elegido, conservando los valores ya
+    /// cargados. Es lo que hace cumplir la regla R1: el paso guarda exactamente los parametros
+    /// declarados, porque uno de mas hace fallar la consulta del lado de DataHub.
+    /// </summary>
+    private void SincronizarParametros()
+    {
+        var ep = EndpointElegido;
+        if (ep is null) { _form.Parametros.Clear(); return; }
+
+        var previos = _form.Parametros.ToDictionary(x => x.Clave, x => x.Valor, StringComparer.Ordinal);
+        _form.Parametros = ep.Parametros
+            .Select(p => new KV { Clave = p.Nombre, Valor = previos.GetValueOrDefault(p.Nombre, "") })
+            .ToList();
+    }
+
+    private Dictionary<string, string> ValoresDeParametros() =>
+        _form.Parametros
+            .Where(x => !string.IsNullOrWhiteSpace(x.Clave))
+            .ToDictionary(x => x.Clave.Trim(), x => x.Valor ?? "", StringComparer.Ordinal);
+
+    private EndpointDataHubDto? EndpointElegido =>
+        _endpoints.FirstOrDefault(e => e.Ruta == _form.Ruta);
+
+    /// <summary>El watermark no se carga a mano: lo completa la corrida (ver la maqueta del Paso 1).</summary>
+    private static bool EsWatermark(string nombre) =>
+        nombre.Equals("watermark", StringComparison.OrdinalIgnoreCase);
+
+    private void EndpointCambio()
+    {
+        SincronizarParametros();
+        _form.EsquemaOrigen = new();
+        _form.ColumnaWatermark = "";
+        _columnasMsg = null;
+        _faltaEsquema = false;
     }
 
     private List<string> NombresColumnas => _form.EsquemaOrigen.Select(c => c.Nombre).ToList();
@@ -375,7 +587,11 @@ else
     private int? TipoDataSourceElegido =>
         _datasources.FirstOrDefault(d => d.Id == _form.DataSourceId)?.Tipo;
 
+    // Fecha: 31/10/2026 - TAREA: 00152 - Linea: 4 - DataHub CompLook = 3. Antes todo lo que no fuera
+    // Csv/Xlsx se trataba como SQL Server, asi que un origen DataHub pedia un SQL que nadie iba a usar.
     private bool EsOrigenDeArchivo => TipoDataSourceElegido is 1 or 2; // Csv=1, Xlsx=2 (ver DataSourcesAdminService)
+    private bool EsOrigenDataHub => TipoDataSourceElegido is 3;
+    private bool EsOrigenSql => TipoDataSourceElegido is 0 or null;
 
     private void Subir(TransformForm t)
     {
@@ -395,9 +611,15 @@ else
         if (string.IsNullOrWhiteSpace(_form.Nombre)) { _error = "El nombre es obligatorio."; return; }
         if (string.IsNullOrWhiteSpace(_form.TablaDestino)) { _error = "La tabla destino es obligatoria."; return; }
         // Fecha: 03/09/2026 - TAREA: 00015 - Linea: 1 - Origenes de archivo (Csv/Xlsx) no requieren SQL.
-        if (_form.DataSourceId is null || (!EsOrigenDeArchivo && string.IsNullOrWhiteSpace(_form.Sql)))
+        // Fecha: 31/10/2026 - TAREA: 00152 - Linea: 4 - DataHub pide endpoint, no SQL.
+        if (_form.DataSourceId is not null && EsOrigenDataHub && string.IsNullOrWhiteSpace(_form.Ruta))
         {
-            _error = "El origen requiere un DataSource" + (EsOrigenDeArchivo ? "." : " y un SQL.");
+            _error = "Elegi un endpoint de DataHub.";
+            return;
+        }
+        if (_form.DataSourceId is null || (EsOrigenSql && string.IsNullOrWhiteSpace(_form.Sql)))
+        {
+            _error = "El origen requiere un DataSource" + (EsOrigenSql ? " y un SQL." : ".");
             return;
         }
         if (_form.ModoEscritura == 2 && _form.ColumnasClave.Count == 0)
@@ -431,7 +653,16 @@ else
         // columnaWatermark/tipoColumnaWatermark en la config del paso cuando hay watermark elegido. El
         // SourceFactory (Csv/Xlsx) lee esas dos claves via LeerStringOpcional para que FileSourceBase
         // pueda filtrar/tipar filas; sin esto el filtro quedaba como no-op aunque la UI dejara elegirlo.
-        var conector = TipoDataSourceElegido switch { 1 => "CsvSource", 2 => "XlsxSource", _ => "SqlServerSource" };
+        // Fecha: 31/10/2026 - TAREA: 00152 - Linea: 4 - El switch tenia "_ => SqlServerSource", asi que
+        // un origen DataHub se guardaba como SqlServerSource. No fallaba al guardar: fallaba al correr,
+        // con un error de conexion que no tenia nada que ver con la causa. Ahora cada tipo se nombra.
+        var conector = TipoDataSourceElegido switch
+        {
+            1 => "CsvSource",
+            2 => "XlsxSource",
+            3 => "DataHubSource",
+            _ => "SqlServerSource"
+        };
         var cfgOrigen = new Dictionary<string, JsonElement>
         {
             ["dataSourceId"] = JsonSerializer.SerializeToElement(_form.DataSourceId?.ToString() ?? "")
@@ -439,6 +670,18 @@ else
         if (conector == "SqlServerSource")
         {
             cfgOrigen["sql"] = JsonSerializer.SerializeToElement(_form.Sql);
+        }
+        else if (conector == "DataHubSource")
+        {
+            var ep = EndpointElegido;
+            cfgOrigen["ruta"] = JsonSerializer.SerializeToElement(_form.Ruta);
+            cfgOrigen["metodoHttp"] = JsonSerializer.SerializeToElement(ep?.MetodoHttp ?? "GET");
+            // Los parametros DECLARADOS por el endpoint, con su valor cargado (regla R1).
+            cfgOrigen["parametros"] = JsonSerializer.SerializeToElement(ValoresDeParametros());
+            if (!string.IsNullOrWhiteSpace(ep?.EsquemaJson))
+                cfgOrigen["esquema"] = JsonSerializer.SerializeToElement(ep!.EsquemaJson!);
+            if (!string.IsNullOrWhiteSpace(_form.ColumnaWatermark))
+                cfgOrigen["columnaWatermark"] = JsonSerializer.SerializeToElement(_form.ColumnaWatermark.Trim());
         }
         else if (!string.IsNullOrWhiteSpace(_form.ColumnaWatermark))
         {
@@ -541,6 +784,18 @@ else
                 _form.DataSourceId = g;
             if (origen.Configuracion.TryGetValue("sql", out var sqlEl) && sqlEl.ValueKind == JsonValueKind.String)
                 _form.Sql = sqlEl.GetString() ?? "";
+
+            // Fecha: 31/10/2026 - TAREA: 00152 - Linea: 4 - Origen DataHub: ruta y parametros guardados.
+            if (origen.Configuracion.TryGetValue("ruta", out var rutaEl) && rutaEl.ValueKind == JsonValueKind.String)
+                _form.Ruta = rutaEl.GetString() ?? "";
+            if (origen.Configuracion.TryGetValue("parametros", out var parEl) && parEl.ValueKind == JsonValueKind.Object)
+                _form.Parametros = parEl.EnumerateObject()
+                    .Select(x => new KV
+                    {
+                        Clave = x.Name,
+                        Valor = x.Value.ValueKind == JsonValueKind.String ? x.Value.GetString() ?? "" : x.Value.ToString()
+                    })
+                    .ToList();
         }
 
         _form.Transforms = def.Pasos

@@ -1,4 +1,4 @@
-@page "/datasources"
+﻿@page "/datasources"
 @inject DataSourcesAdminService Origenes
 
 <PageTitle>Origenes de datos — Admin</PageTitle>
@@ -64,18 +64,83 @@
                 </SfDropDownList>
             </div>
 
+            @* Fecha: 31/10/2026 - TAREA: 00152 - Linea: 4 - DataHub CompLook: URL + las dos credenciales,
+               cada una con su etiqueta de para que sirve. Que sean dos no es un capricho: GET /api/endpoints
+               exige rol Admin de DataHub y /api/query valida contra las asignaciones del endpoint, donde el
+               admin no pasa. Sin esta aclaracion en pantalla, cargar la misma en las dos es lo natural. *@
+            @if (_form.Tipo == TipoDataHub)
+            {
+                <div class="mb-3">
+                    <SfTextBox Placeholder="URL de DataHub *" FloatLabelType="FloatLabelType.Always"
+                               @bind-Value="_form.BaseUrl" />
+                    <div class="texto-caption texto-secundario mt-1">
+                        La raiz, sin /api. Por ejemplo http://srv-datahub:5000
+                    </div>
+                </div>
+
+                <div class="d-flex mb-1" style="justify-content:flex-end;">
+                    <SfButton CssClass="e-flat e-small" OnClick="@(() => _mostrarSecretos = !_mostrarSecretos)">
+                        @(_mostrarSecretos ? "Ocultar secretos" : "Mostrar secretos")
+                    </SfButton>
+                </div>
+
+                <div class="texto-caption texto-secundario mb-2" style="font-weight:700;letter-spacing:.04em;">
+                    CREDENCIAL DEL CATALOGO
+                </div>
+                <div class="texto-caption texto-secundario mb-2">
+                    Lista los endpoints. Tiene que ser un usuario <b>administrador</b> de DataHub.
+                </div>
+                <div class="mb-2">
+                    <SfTextBox Placeholder="@(_form.Id == Guid.Empty ? "Usuario del catalogo *" : "Usuario del catalogo")"
+                               FloatLabelType="FloatLabelType.Always"
+                               Type="@(_mostrarSecretos ? InputType.Text : InputType.Password)"
+                               @bind-Value="_form.UsuarioCatalogo" />
+                </div>
+                <div class="mb-3">
+                    <SfTextBox Placeholder="@(_form.Id == Guid.Empty ? "Contrasena del catalogo *" : "Contrasena del catalogo")"
+                               FloatLabelType="FloatLabelType.Always"
+                               Type="@(_mostrarSecretos ? InputType.Text : InputType.Password)"
+                               @bind-Value="_form.PasswordCatalogo" />
+                </div>
+
+                <div class="texto-caption texto-secundario mb-2" style="font-weight:700;letter-spacing:.04em;">
+                    CREDENCIAL DE LOS DATOS
+                </div>
+                <div class="texto-caption texto-secundario mb-2">
+                    Trae los datos en cada corrida. Tiene que estar <b>asignada en DataHub a cada endpoint</b>
+                    que este origen vaya a consumir.
+                </div>
+                <div class="mb-2">
+                    <SfTextBox Placeholder="@(_form.Id == Guid.Empty ? "Usuario de datos *" : "Usuario de datos")"
+                               FloatLabelType="FloatLabelType.Always"
+                               Type="@(_mostrarSecretos ? InputType.Text : InputType.Password)"
+                               @bind-Value="_form.Username" />
+                </div>
+                <div class="mb-2">
+                    <SfTextBox Placeholder="@(_form.Id == Guid.Empty ? "Contrasena de datos *" : "Contrasena de datos")"
+                               FloatLabelType="FloatLabelType.Always"
+                               Type="@(_mostrarSecretos ? InputType.Text : InputType.Password)"
+                               @bind-Value="_form.Password" />
+                </div>
+
+                @if (_form.Id != Guid.Empty)
+                {
+                    <small class="texto-secundario d-block mb-2">Deja los secretos vacios para conservar los actuales.</small>
+                }
+            }
+
             @* Fecha: 03/09/2026 - TAREA: 00015 - Linea: 1 - Origenes de archivo (Csv/Xlsx): campos condicionales por Tipo. *@
-            @if (_form.Tipo == 1 || _form.Tipo == 2)
+            @if (_form.Tipo == TipoCsv || _form.Tipo == TipoXlsx)
             {
                 <div class="mb-2">
                     <SfTextBox Placeholder="Carpeta *" FloatLabelType="FloatLabelType.Always" @bind-Value="_form.RutaCarpeta" />
                 </div>
                 <div class="mb-2">
-                    <SfTextBox Placeholder="@(_form.Tipo == 1 ? "Patron de archivo (ej. VENTAS_*.csv)" : "Patron de archivo (ej. VENTAS_*.xlsx)")"
+                    <SfTextBox Placeholder="@(_form.Tipo == TipoCsv ? "Patron de archivo (ej. VENTAS_*.csv)" : "Patron de archivo (ej. VENTAS_*.xlsx)")"
                                FloatLabelType="FloatLabelType.Always" @bind-Value="_form.PatronArchivo" />
                 </div>
             }
-            @if (_form.Tipo == 1)
+            @if (_form.Tipo == TipoCsv)
             {
                 <div class="mb-2">
                     <SfDropDownList TValue="string" TItem="OpcionTexto" DataSource="_separadores" @bind-Value="_form.Separador"
@@ -93,14 +158,14 @@
                     <SfCheckBox @bind-Checked="_form.TieneEncabezado" Label="Tiene encabezado"></SfCheckBox>
                 </div>
             }
-            @if (_form.Tipo == 2)
+            @if (_form.Tipo == TipoXlsx)
             {
                 <div class="mb-2">
                     <SfTextBox Placeholder="Hoja (vacio = primera)" FloatLabelType="FloatLabelType.Always" @bind-Value="_form.HojaExcel" />
                 </div>
             }
 
-            @if (_form.Tipo == 0)
+            @if (_form.Tipo == TipoSqlServer)
             {
                 <div class="d-flex mb-1" style="justify-content:flex-end;">
                     <SfButton CssClass="e-flat e-small" OnClick="@(() => _mostrarSecretos = !_mostrarSecretos)">
@@ -166,7 +231,11 @@
 @code {
     private sealed record OpcionTipo(int Valor, string Texto);
     // Fecha: 03/09/2026 - TAREA: 00015 - Linea: 1 - Origenes de archivo: Csv/Xlsx (mismo orden que TipoDataSource).
-    private readonly List<OpcionTipo> _tipos = new() { new(0, "SqlServer"), new(1, "Csv"), new(2, "Xlsx") };
+    // Fecha: 31/10/2026 - TAREA: 00152 - Linea: 4 - DataHub CompLook (indice 3 = TipoDataSource.DataHubCompLook).
+    private readonly List<OpcionTipo> _tipos = new()
+    {
+        new(0, "SqlServer"), new(1, "Csv"), new(2, "Xlsx"), new(3, "DataHub CompLook")
+    };
 
     private sealed record OpcionTexto(string Valor, string Texto);
     private readonly List<OpcionTexto> _separadores = new() { new(",", ","), new(";", ";"), new("\t", "Tab") };
@@ -187,6 +256,10 @@
         public string Encoding { get; set; } = "UTF-8";
         public bool TieneEncabezado { get; set; } = true;
         public string? HojaExcel { get; set; }
+        // Fecha: 31/10/2026 - TAREA: 00152 - Linea: 4 - DataHub CompLook: URL + las DOS credenciales.
+        public string? BaseUrl { get; set; }
+        public string? UsuarioCatalogo { get; set; }
+        public string? PasswordCatalogo { get; set; }
         public bool Activo { get; set; } = true;
     }
 
@@ -207,7 +280,18 @@
     private string? _feedback;
     private bool _feedbackOk;
 
-    private static string TipoTexto(int tipo) => tipo switch { 0 => "SqlServer", 1 => "Csv", 2 => "Xlsx", _ => tipo.ToString() };
+    private static string TipoTexto(int tipo) => tipo switch
+    {
+        0 => "SqlServer", 1 => "Csv", 2 => "Xlsx", 3 => "DataHub CompLook", _ => tipo.ToString()
+    };
+
+    // Fecha: 31/10/2026 - TAREA: 00152 - Linea: 4 - Nombres en vez de numeros sueltos: el "_form.Tipo
+    // == 1" repartido por el markup era justo lo que hacia facil olvidarse de un tipo nuevo.
+    private const int TipoSqlServer = 0;
+    private const int TipoCsv = 1;
+    private const int TipoXlsx = 2;
+    private const int TipoDataHub = 3;
+    private bool EsArchivo => _form.Tipo is TipoCsv or TipoXlsx;
 
     protected override async Task OnInitializedAsync() => await Recargar();
 
@@ -232,7 +316,8 @@
             RutaCarpeta = d.RutaCarpeta, PatronArchivo = d.PatronArchivo,
             Separador = string.IsNullOrEmpty(d.Separador) ? "," : d.Separador,
             Encoding = string.IsNullOrEmpty(d.Encoding) ? "UTF-8" : d.Encoding,
-            TieneEncabezado = d.TieneEncabezado, HojaExcel = d.HojaExcel
+            TieneEncabezado = d.TieneEncabezado, HojaExcel = d.HojaExcel,
+            BaseUrl = d.BaseUrl
         };
         _mostrarSecretos = false;
         _errorNombre = _errorForm = null;
@@ -243,24 +328,52 @@
     {
         _errorNombre = _errorForm = null;
         if (string.IsNullOrWhiteSpace(_form.Nombre)) { _errorNombre = "El nombre es obligatorio."; return; }
-        if (_form.Tipo == 0 && _form.Id == Guid.Empty && string.IsNullOrWhiteSpace(_form.ConnectionString))
+        // Fecha: 31/10/2026 - TAREA: 00152 - Linea: 4 - La validacion era binaria ("si no es
+        // SqlServer, exigi carpeta"), asi que a un origen DataHub le pedia una carpeta de red.
+        if (_form.Tipo == TipoSqlServer && _form.Id == Guid.Empty && string.IsNullOrWhiteSpace(_form.ConnectionString))
         {
             _errorForm = "La connection string es obligatoria para un origen nuevo.";
             return;
         }
-        if (_form.Tipo != 0 && string.IsNullOrWhiteSpace(_form.RutaCarpeta))
+        if (EsArchivo && string.IsNullOrWhiteSpace(_form.RutaCarpeta))
         {
             _errorForm = "La carpeta es obligatoria.";
             return;
+        }
+        if (_form.Tipo == TipoDataHub)
+        {
+            if (string.IsNullOrWhiteSpace(_form.BaseUrl))
+            {
+                _errorForm = "La URL de DataHub es obligatoria.";
+                return;
+            }
+            if (!Uri.TryCreate(_form.BaseUrl.Trim(), UriKind.Absolute, out var u)
+                || (u.Scheme != Uri.UriSchemeHttp && u.Scheme != Uri.UriSchemeHttps))
+            {
+                _errorForm = "La URL de DataHub tiene que empezar con http:// o https://.";
+                return;
+            }
+            // En un alta hacen falta las dos credenciales; editando, vacio = conservar la que estaba.
+            if (_form.Id == Guid.Empty
+                && (string.IsNullOrWhiteSpace(_form.UsuarioCatalogo)
+                    || string.IsNullOrWhiteSpace(_form.PasswordCatalogo)
+                    || string.IsNullOrWhiteSpace(_form.Username)
+                    || string.IsNullOrWhiteSpace(_form.Password)))
+            {
+                _errorForm = "Un origen DataHub necesita las dos credenciales: la del catalogo "
+                           + "(administrador de DataHub) y la de datos (el ApiUser asignado a los endpoints).";
+                return;
+            }
         }
 
         _guardando = true;
         try
         {
             var dto = new DataSourceUpsert(_form.Id, _form.Nombre.Trim(), _form.Tipo,
-                _form.ConnectionString, _form.Username, _form.Password, null,
+                _form.ConnectionString, _form.Username, _form.Password, _form.BaseUrl?.Trim(),
                 _form.RutaCarpeta, _form.PatronArchivo, _form.Separador, _form.Encoding,
-                _form.TieneEncabezado, _form.HojaExcel, _form.Activo);
+                _form.TieneEncabezado, _form.HojaExcel, _form.Activo,
+                _form.UsuarioCatalogo, _form.PasswordCatalogo);
             var ok = await Origenes.GuardarAsync(dto);
             if (ok)
             {
@@ -282,7 +395,11 @@
         try
         {
             var r = await Origenes.ProbarAsync(id);
-            Mostrar(r.Ok, r.Ok ? "Conexion exitosa." : $"Fallo la conexion: {r.Error}");
+            // Fecha: 31/10/2026 - TAREA: 00152 - Linea: 3 - Una prueba que sale bien ahora tiene algo
+            // que contar (cuantos endpoints, de que motores): se muestra en vez de "Conexion exitosa".
+            Mostrar(r.Ok, r.Ok
+                ? (string.IsNullOrWhiteSpace(r.Mensaje) ? "Conexion exitosa." : r.Mensaje!)
+                : $"Fallo la conexion: {r.Error}");
         }
         finally { _ocupado = false; }
     }
