@@ -73,13 +73,47 @@ else
                         <SfMessage Severity="MessageSeverity.Error" CssClass="mb-3">
                             <b>No se pudo traer el catalogo.</b><br />@_catalogoError
                         </SfMessage>
+                        @* Fecha: 31/10/2026 - TAREA: 00154 - Linea: 2 - Revision 1, hallazgo P1: el modo
+                           manual dejaba escribir la ruta pero no el metodo ni los parametros, asi que
+                           guardaba GET y la lista vacia. Un endpoint POST o con parametros obligatorios
+                           quedaba roto desde el alta, y recien fallaba al correr. *@
                         <div class="mb-3">
                             <SfTextBox Placeholder="Ruta del endpoint (a mano)" FloatLabelType="FloatLabelType.Always"
                                        @bind-Value="_form.Ruta" />
-                            <div class="texto-caption texto-secundario mt-1">
-                                Mientras el catalogo no responda se puede escribir la ruta, pero sin el los
-                                parametros y el esquema hay que cargarlos a mano.
+                        </div>
+                        <div class="mb-3" style="max-width:220px;">
+                            <SfDropDownList TValue="string" TItem="string" DataSource="_metodosHttp"
+                                            @bind-Value="_form.MetodoHttp" Placeholder="Metodo *"
+                                            FloatLabelType="FloatLabelType.Always" />
+                        </div>
+                        <div class="texto-caption texto-secundario mb-2" style="font-weight:700;letter-spacing:.04em;">
+                            PARAMETROS (A MANO)
+                        </div>
+                        <div class="texto-caption texto-secundario mb-2">
+                            Tienen que ser <b>exactamente</b> los que declara el endpoint en DataHub: uno de mas
+                            hace fallar la consulta. Si el endpoint usa carga incremental, agrega <code>watermark</code>
+                            y dejalo vacio.
+                        </div>
+                        @foreach (var par in _form.Parametros)
+                        {
+                            <div class="d-flex align-center gap-2 mb-2">
+                                <div style="width:200px;">
+                                    <SfTextBox Placeholder="Nombre" FloatLabelType="FloatLabelType.Never"
+                                               @bind-Value="par.Clave" />
+                                </div>
+                                <div class="flex-grow-1">
+                                    <SfTextBox Placeholder="Valor" FloatLabelType="FloatLabelType.Never"
+                                               @bind-Value="par.Valor" />
+                                </div>
+                                <SfButton CssClass="e-flat e-small" OnClick="@(() => _form.Parametros.Remove(par))">
+                                    Quitar
+                                </SfButton>
                             </div>
+                        }
+                        <div class="mb-3">
+                            <SfButton CssClass="e-flat e-small" OnClick="@(() => _form.Parametros.Add(new KV()))">
+                                + Agregar parametro
+                            </SfButton>
                         </div>
                     }
                     else if (_endpoints.Count == 0 && !_catalogoCargando)
@@ -109,10 +143,13 @@ else
                     else if (_endpoints.Count > 0)
                     {
                         <div class="mb-3">
+                            @* Fecha: 31/10/2026 - TAREA: 00154 - Linea: 2 - Revision 1, hallazgo P1: el
+                               combo se enlaza a la clave (metodo + ruta), no a la ruta sola. Con la
+                               misma ruta publicada como GET y como POST, elegir por ruta era ambiguo. *@
                             <SfDropDownList TValue="string" TItem="EndpointDataHubDto" DataSource="_endpoints"
-                                            @bind-Value="_form.Ruta" Placeholder="Endpoint *"
+                                            @bind-Value="_form.ClaveEndpoint" Placeholder="Endpoint *"
                                             FloatLabelType="FloatLabelType.Always" AllowFiltering="true">
-                                <DropDownListFieldSettings Value="Ruta" Text="Ruta"></DropDownListFieldSettings>
+                                <DropDownListFieldSettings Value="Clave" Text="Clave"></DropDownListFieldSettings>
                                 <DropDownListEvents TValue="string" TItem="EndpointDataHubDto" ValueChange="@((Syncfusion.Blazor.DropDowns.ChangeEventArgs<string, EndpointDataHubDto> _) => EndpointCambio())"></DropDownListEvents>
                             </SfDropDownList>
                         </div>
@@ -427,6 +464,13 @@ else
         // Fecha: 31/10/2026 - TAREA: 00154 - Linea: 4 - Origen DataHub: endpoint elegido y los valores
         // de los parametros que ese endpoint declara.
         public string Ruta { get; set; } = "";
+        // Fecha: 31/10/2026 - TAREA: 00154 - Linea: 4 - Revision 1, hallazgo P1: el metodo y el esquema
+        // se guardaban SOLO si el catalogo estaba cargado. Editar un pipeline POST sin tocar el origen
+        // lo convertia en GET y le borraba el esquema, en silencio. Ahora el formulario los recuerda.
+        public string MetodoHttp { get; set; } = "";
+        /// <summary>Lo que elige el combo: "METODO ruta". Ruta y metodo se derivan de aca.</summary>
+        public string ClaveEndpoint { get; set; } = "";
+        public string? EsquemaJson { get; set; }
         public List<KV> Parametros { get; set; } = new();
         public List<TransformForm> Transforms { get; set; } = new();
     }
@@ -451,6 +495,8 @@ else
         new(4, "Jueves"), new(5, "Viernes"), new(6, "Sabado")
     };
     private readonly List<string> _tiposCast = new() { "int", "long", "decimal", "double", "bool", "date", "string" };
+    // Fecha: 31/10/2026 - TAREA: 00154 - Linea: 2 - Los dos metodos que expone /api/query de DataHub.
+    private readonly List<string> _metodosHttp = new() { "GET", "POST" };
 
     private List<DataSourceVista> _datasources = new();
     private PipelineForm _form = new();
@@ -521,7 +567,8 @@ else
             EsOrigenSql ? _form.Sql : null,
             EsOrigenDataHub ? _form.Ruta : null,
             EsOrigenDataHub ? ValoresDeParametros() : null,
-            ejecutar);
+            ejecutar,
+            EsOrigenDataHub ? _form.MetodoHttp : null);
 
         if (!r.Ok)
         {
@@ -556,6 +603,23 @@ else
                 return;
             }
             _endpoints = r.Endpoints;
+
+            // Al traer el catalogo sobre un pipeline ya guardado hay que reconstruir la clave del
+            // combo desde la ruta y el metodo que tenia, o el endpoint elegido se perderia.
+            if (string.IsNullOrWhiteSpace(_form.ClaveEndpoint) && !string.IsNullOrWhiteSpace(_form.Ruta))
+            {
+                var guardado = _endpoints.FirstOrDefault(e =>
+                    e.Ruta.Equals(_form.Ruta, StringComparison.OrdinalIgnoreCase)
+                    && (string.IsNullOrWhiteSpace(_form.MetodoHttp)
+                        || e.MetodoHttp.Equals(_form.MetodoHttp, StringComparison.OrdinalIgnoreCase)));
+                if (guardado is not null)
+                {
+                    _form.ClaveEndpoint = guardado.Clave;
+                    _form.MetodoHttp = guardado.MetodoHttp;
+                    _form.EsquemaJson ??= guardado.EsquemaJson;
+                }
+            }
+
             SincronizarParametros();
         }
         finally { _catalogoCargando = false; }
@@ -582,8 +646,11 @@ else
             .Where(x => !string.IsNullOrWhiteSpace(x.Clave))
             .ToDictionary(x => x.Clave.Trim(), x => x.Valor ?? "", StringComparer.Ordinal);
 
+    // Fecha: 31/10/2026 - TAREA: 00154 - Linea: 2 - Revision 1, hallazgo P1: la identidad es ruta +
+    // metodo. Si el catalogo publica la misma ruta como GET y como POST, buscar por ruta sola elige
+    // cualquiera de los dos y el paso puede terminar guardado con el metodo del otro.
     private EndpointDataHubDto? EndpointElegido =>
-        _endpoints.FirstOrDefault(e => e.Ruta == _form.Ruta);
+        _endpoints.FirstOrDefault(e => e.Clave == _form.ClaveEndpoint);
 
     /// <summary>El watermark no se carga a mano: lo completa la corrida (ver la maqueta del Paso 1).</summary>
     private static bool EsWatermark(string nombre) =>
@@ -591,6 +658,12 @@ else
 
     private void EndpointCambio()
     {
+        // La clave (metodo + ruta) es lo que elige el combo; ruta y metodo se derivan de ella.
+        var ep = EndpointElegido;
+        _form.Ruta = ep?.Ruta ?? "";
+        _form.MetodoHttp = ep?.MetodoHttp ?? "";
+        _form.EsquemaJson = ep?.EsquemaJson;
+
         SincronizarParametros();
         _form.EsquemaOrigen = new();
         _form.ColumnaWatermark = "";
@@ -634,6 +707,14 @@ else
             _error = "Elegi un endpoint de DataHub.";
             return;
         }
+        // Revision 1: con la ruta escrita a mano, el metodo no se puede adivinar. DataHub busca por
+        // ruta Y metodo: con el equivocado devuelve 404 hablando de un endpoint que no existe.
+        if (_form.DataSourceId is not null && EsOrigenDataHub
+            && EndpointElegido is null && string.IsNullOrWhiteSpace(_form.MetodoHttp))
+        {
+            _error = "Falta el metodo del endpoint (GET o POST). DataHub lo busca por ruta y metodo.";
+            return;
+        }
         if (_form.DataSourceId is null || (EsOrigenSql && string.IsNullOrWhiteSpace(_form.Sql)))
         {
             _error = "El origen requiere un DataSource" + (EsOrigenSql ? " y un SQL." : ".");
@@ -673,12 +754,16 @@ else
         // Fecha: 31/10/2026 - TAREA: 00154 - Linea: 4 - El switch tenia "_ => SqlServerSource", asi que
         // un origen DataHub se guardaba como SqlServerSource. No fallaba al guardar: fallaba al correr,
         // con un error de conexion que no tenia nada que ver con la causa. Ahora cada tipo se nombra.
+        // Revision 1: el "_ => SqlServerSource" seguia sin ser exhaustivo — un tipo futuro volveria a
+        // caer en SQL Server en silencio, que es exactamente el bug que esta tarea vino a arreglar.
         var conector = TipoDataSourceElegido switch
         {
+            0 or null => "SqlServerSource",
             1 => "CsvSource",
             2 => "XlsxSource",
             3 => "DataHubSource",
-            _ => "SqlServerSource"
+            var otro => throw new NotSupportedException(
+                $"Tipo de origen {otro} sin conector asignado en el editor.")
         };
         var cfgOrigen = new Dictionary<string, JsonElement>
         {
@@ -690,13 +775,25 @@ else
         }
         else if (conector == "DataHubSource")
         {
+            // Fecha: 31/10/2026 - TAREA: 00154 - Linea: 4 - Revision 1, hallazgo P1: antes el metodo
+            // salia de EndpointElegido con "GET" por defecto y el esquema se escribia solo si habia
+            // endpoint cargado. Abrir un pipeline POST, cambiarle el nombre y guardar lo pasaba a GET
+            // y le borraba el esquema. Ahora el catalogo solo pisa lo guardado cuando de verdad hay
+            // un endpoint elegido; si no, se conserva lo que ya tenia el paso.
             var ep = EndpointElegido;
             cfgOrigen["ruta"] = JsonSerializer.SerializeToElement(_form.Ruta);
-            cfgOrigen["metodoHttp"] = JsonSerializer.SerializeToElement(ep?.MetodoHttp ?? "GET");
+
+            var metodo = ep?.MetodoHttp
+                         ?? (string.IsNullOrWhiteSpace(_form.MetodoHttp) ? "GET" : _form.MetodoHttp);
+            cfgOrigen["metodoHttp"] = JsonSerializer.SerializeToElement(metodo);
+
             // Los parametros DECLARADOS por el endpoint, con su valor cargado (regla R1).
             cfgOrigen["parametros"] = JsonSerializer.SerializeToElement(ValoresDeParametros());
-            if (!string.IsNullOrWhiteSpace(ep?.EsquemaJson))
-                cfgOrigen["esquema"] = JsonSerializer.SerializeToElement(ep!.EsquemaJson!);
+
+            var esquema = !string.IsNullOrWhiteSpace(ep?.EsquemaJson) ? ep!.EsquemaJson : _form.EsquemaJson;
+            if (!string.IsNullOrWhiteSpace(esquema))
+                cfgOrigen["esquema"] = JsonSerializer.SerializeToElement(esquema!);
+
             if (!string.IsNullOrWhiteSpace(_form.ColumnaWatermark))
                 cfgOrigen["columnaWatermark"] = JsonSerializer.SerializeToElement(_form.ColumnaWatermark.Trim());
         }
@@ -802,9 +899,14 @@ else
             if (origen.Configuracion.TryGetValue("sql", out var sqlEl) && sqlEl.ValueKind == JsonValueKind.String)
                 _form.Sql = sqlEl.GetString() ?? "";
 
-            // Fecha: 31/10/2026 - TAREA: 00154 - Linea: 4 - Origen DataHub: ruta y parametros guardados.
+            // Fecha: 31/10/2026 - TAREA: 00154 - Linea: 4 - Origen DataHub: ruta, metodo, esquema y
+            // parametros guardados. Los cuatro, porque los cuatro se vuelven a escribir al guardar.
             if (origen.Configuracion.TryGetValue("ruta", out var rutaEl) && rutaEl.ValueKind == JsonValueKind.String)
                 _form.Ruta = rutaEl.GetString() ?? "";
+            if (origen.Configuracion.TryGetValue("metodoHttp", out var mtEl) && mtEl.ValueKind == JsonValueKind.String)
+                _form.MetodoHttp = mtEl.GetString() ?? "";
+            if (origen.Configuracion.TryGetValue("esquema", out var esqEl) && esqEl.ValueKind == JsonValueKind.String)
+                _form.EsquemaJson = esqEl.GetString();
             if (origen.Configuracion.TryGetValue("parametros", out var parEl) && parEl.ValueKind == JsonValueKind.Object)
                 _form.Parametros = parEl.EnumerateObject()
                     .Select(x => new KV

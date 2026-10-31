@@ -43,8 +43,10 @@ public sealed class DataSourcesController : ControllerBase
         bool TieneEncabezado, string? HojaExcel, bool Activo,
         string? UsuarioCatalogo, string? PasswordCatalogo);
 
+    // Fecha: 31/10/2026 - TAREA: 00154 - Linea: 3 - Revision 1, hallazgo P1: el metodo es parte de la
+    // identidad del endpoint en DataHub, no un detalle.
     public sealed record ColumnasReq(string? Sql, string? Ruta = null,
-        Dictionary<string, string>? Parametros = null, bool Ejecutar = false);
+        Dictionary<string, string>? Parametros = null, bool Ejecutar = false, string? Metodo = null);
 
     private static DataSourceVista AVista(DataSource d) =>
         new(d.Id, d.Nombre, d.Tipo, d.Activo, d.CreatedAt, d.UpdatedAt, !string.IsNullOrEmpty(d.ConnectionString),
@@ -178,7 +180,7 @@ public sealed class DataSourcesController : ControllerBase
                 if (string.IsNullOrWhiteSpace(req?.Ruta))
                     return BadRequest(new { error = "No se eligio ningun endpoint." });
                 r = await _discoverer.DescubrirDataHubAsync(
-                    Origen(d), req.Ruta, req.Parametros, req.Ejecutar, ct);
+                    Origen(d), req.Ruta, req.Metodo, req.Parametros, req.Ejecutar, ct);
                 break;
 
             default:

@@ -71,10 +71,17 @@ public sealed class DataHubLector
 
         await pipe.CompleteAsync();
 
-        if (Success == false)
-            throw new DataHubException(string.IsNullOrWhiteSpace(Error)
-                ? "DataHub respondio success:false sin texto de error."
-                : Error!);
+        // Fecha: 31/10/2026 - TAREA: 00154 - Linea: 1 - Revision 1, hallazgo P2: antes solo fallaba con
+        // success:false, asi que una respuesta SIN "success" —truncada, o de otro formato— pasaba como
+        // corrida exitosa y sus filas entraban al pipeline. Se exige el true explicito: la unica
+        // respuesta buena es la que DataHub marca como buena.
+        if (Success != true)
+            throw new DataHubException(
+                Success is null
+                    ? "La respuesta de DataHub no trae 'success'. No es una respuesta valida de /api/query."
+                    : string.IsNullOrWhiteSpace(Error)
+                        ? "DataHub respondio success:false sin texto de error."
+                        : Error!);
     }
 
     /// <summary>Consume lo que haya completo en el buffer. Lo parcial queda para la proxima vuelta.</summary>

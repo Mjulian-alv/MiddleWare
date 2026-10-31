@@ -37,7 +37,14 @@ public sealed record ParametroEndpointDto(string Nombre, string Tipo, string? Et
 
 /// <summary>Un endpoint del catalogo de DataHub, tal como se elige en el Paso 1.</summary>
 public sealed record EndpointDataHubDto(string Ruta, string MetodoHttp, string? Descripcion,
-    string Motor, List<ParametroEndpointDto> Parametros, string? EsquemaJson);
+    string Motor, List<ParametroEndpointDto> Parametros, string? EsquemaJson)
+{
+    // Fecha: 31/10/2026 - TAREA: 00154 - Linea: 2 - Revision 1, hallazgo P1: la identidad de un
+    // endpoint en DataHub es ruta + metodo, porque la misma ruta puede publicarse como GET y como
+    // POST. Elegir por ruta sola podia guardar el metodo del otro.
+    /// <summary>Identidad del endpoint, tal como la usa DataHub para buscarlo.</summary>
+    public string Clave => $"{MetodoHttp} {Ruta}";
+}
 
 /// <summary>Resultado de pedir el catalogo: distingue "vino vacio" de "no se pudo traer".</summary>
 public sealed record CatalogoResp(bool Ok, List<EndpointDataHubDto> Endpoints, string? Error);
@@ -111,13 +118,13 @@ public class DataSourcesAdminService
     /// </summary>
     public async Task<ColumnasResp> TraerColumnasAsync(
         Guid id, string? sql, string? ruta = null,
-        Dictionary<string, string>? parametros = null, bool ejecutar = false)
+        Dictionary<string, string>? parametros = null, bool ejecutar = false, string? metodo = null)
     {
         HttpResponseMessage r;
         try
         {
             r = await _http.PostAsJsonAsync($"api/datasources/{id}/columnas",
-                new { sql, ruta, parametros, ejecutar });
+                new { sql, ruta, parametros, ejecutar, metodo });
         }
         catch (HttpRequestException ex)
         {

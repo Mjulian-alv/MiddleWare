@@ -148,6 +148,25 @@ public class DataHubSourceTests
         Assert.Contains("ORA-00942", ex.Message);
     }
 
+    // Fecha: 31/10/2026 - TAREA: 00154 - Linea: 1 - Revision 1, hallazgo P2: una respuesta SIN
+    // "success" pasaba como corrida exitosa y sus filas entraban al pipeline. Tiene que cortar.
+    [Fact]
+    public async Task Una_respuesta_sin_success_no_se_toma_por_buena()
+    {
+        const string json = """
+            {"columns":["nro"],"rows":[{"nro":1},{"nro":2}]}
+            """;
+        var lector = new DataHubLector();
+
+        var ex = await Assert.ThrowsAsync<DataHubException>(async () =>
+        {
+            await foreach (var _ in lector.LeerFilasAsync(
+                new StreamTacano(json, 16), new Dictionary<string, string>(), default)) { }
+        });
+
+        Assert.Contains("no trae 'success'", ex.Message);
+    }
+
     [Fact]
     public async Task Un_success_false_sin_texto_igual_corta()
     {

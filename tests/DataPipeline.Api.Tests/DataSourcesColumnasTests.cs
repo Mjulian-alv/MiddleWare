@@ -61,13 +61,16 @@ public class DataSourcesColumnasTests
         // Fecha: 31/10/2026 - TAREA: 00154 - Linea: 3 - Columnas de un endpoint de DataHub.
         public bool DataHubLlamado;
         public string? RutaPedida;
+        public string? MetodoPedido;
         public bool EjecutarPedido;
         public Task<SchemaResult> DescubrirDataHubAsync(
-            OrigenDataHub origen, string ruta, IReadOnlyDictionary<string, string>? parametros,
+            OrigenDataHub origen, string ruta, string? metodoHttp,
+            IReadOnlyDictionary<string, string>? parametros,
             bool ejecutarSiFaltaEsquema, CancellationToken ct)
         {
             DataHubLlamado = true;
             RutaPedida = ruta;
+            MetodoPedido = metodoHttp;
             EjecutarPedido = ejecutarSiFaltaEsquema;
             return Task.FromResult(_r);
         }

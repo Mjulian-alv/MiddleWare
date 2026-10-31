@@ -82,6 +82,7 @@ public sealed class SqlServerSchemaDiscoverer : ISchemaDiscoverer
     public async Task<SchemaResult> DescubrirDataHubAsync(
         OrigenDataHub origen,
         string ruta,
+        string? metodoHttp,
         IReadOnlyDictionary<string, string>? parametros,
         bool ejecutarSiFaltaEsquema,
         CancellationToken ct)
@@ -93,12 +94,23 @@ public sealed class SqlServerSchemaDiscoverer : ISchemaDiscoverer
         if (!cat.Ok)
             return new SchemaResult(false, null, cat.Error);
 
-        var ep = (cat.Endpoints ?? Array.Empty<EndpointDataHub>())
-            .FirstOrDefault(e => e.Ruta.Equals(ruta.Trim('/'), StringComparison.OrdinalIgnoreCase));
+        // Fecha: 31/10/2026 - TAREA: 00154 - Linea: 3 - Revision 1, hallazgo P1: se busca por ruta Y
+        // metodo. La misma ruta puede estar publicada como GET y como POST, con esquemas distintos.
+        var candidatos = (cat.Endpoints ?? Array.Empty<EndpointDataHub>())
+            .Where(e => e.Ruta.Equals(ruta.Trim('/'), StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        var ep = string.IsNullOrWhiteSpace(metodoHttp)
+            ? (candidatos.Count == 1 ? candidatos[0] : null)
+            : candidatos.FirstOrDefault(e => e.MetodoHttp.Equals(metodoHttp.Trim(), StringComparison.OrdinalIgnoreCase));
 
         if (ep is null)
             return new SchemaResult(false, null,
-                $"El endpoint '{ruta}' no esta en el catalogo de DataHub, o quedo inactivo.");
+                candidatos.Count > 1 && string.IsNullOrWhiteSpace(metodoHttp)
+                    ? $"La ruta '{ruta}' esta publicada con mas de un metodo en DataHub "
+                      + $"({string.Join(", ", candidatos.Select(c => c.MetodoHttp))}). Hay que elegir cual."
+                    : $"El endpoint '{(string.IsNullOrWhiteSpace(metodoHttp) ? "" : metodoHttp + " ")}{ruta}' "
+                      + "no esta en el catalogo de DataHub, o quedo inactivo.");
 
         var columnas = ColumnasDe(ep.EsquemaJson);
         if (columnas.Count > 0)
