@@ -1,0 +1,64 @@
+<!doctype html><html lang="es"><head><meta charset="utf-8">
+<title>Flujograma 00152</title>
+<style>html,body{margin:0;background:#fff;font-family:'Segoe UI',Roboto,Arial,sans-serif}
+#out{display:inline-block;padding:24px}#src{display:none}</style></head><body>
+<pre id="src">flowchart TD
+    subgraph DIS["DISEÑO — en el Admin, antes de que corra nada"]
+        A1["Alta del origen DataHub CompLook"] --> A2["URL de DataHub&lt;br/>+ credencial de catálogo (admin)&lt;br/>+ credencial de datos (ApiUser)"]
+        A2 --> A3{"Probar conexión"}
+        A3 -->|"no responde"| X1["DataHub caído:&lt;br/>se muestra el error, no se guarda"]
+        A3 -->|"401"| X2["Credencial inválida:&lt;br/>el mensaje aclara CUÁL de las dos falló"]
+        A3 -->|"OK"| A4["Editor de pipelines, Paso 1"]
+        A4 --> A5["GET /api/endpoints&lt;br/>con la credencial ADMIN"]
+        A5 -->|"error de red / 401"| X3["No se pudo traer el catálogo:&lt;br/>Reintentar"]
+        A5 -->|"0 endpoints"| X4["Catálogo vacío:&lt;br/>hay que asignar el ApiUser en DataHub"]
+        A5 -->|"OK"| A6["Se elige un endpoint&lt;br/>ruta + método + motor"]
+        A6 --> A7["Se cargan los valores de&lt;br/>los parámetros declarados"]
+        A7 --> A8{"¿El endpoint tiene&lt;br/>ResultSchemaJson?"}
+        A8 -->|"sí"| A9["Traer columnas&lt;br/>SIN ejecutar la consulta"]
+        A8 -->|"no"| X5["Nunca pasó una prueba en DataHub.&lt;br/>Se avisa y se ofrece ejecutar&lt;br/>la consulta (fallback de D3)"]
+        X5 --> A9
+        A9 --> A10["Paso guardado&lt;br/>Conector = DataHubSource"]
+    end
+
+    A10 -.->|"ya configurado"| B1
+
+    subgraph COR["CORRIDA"]
+        B1["El scheduler dispara el pipeline"] --> B2["PipelineHydrator inyecta BaseUrl&lt;br/>y la credencial DE DATOS&lt;br/>(la admin no se usa acá)"]
+        B2 --> B3["DataHubSource llama&lt;br/>GET o POST /api/query/ruta&lt;br/>con el método del catálogo (R5)&lt;br/>y el watermark aunque venga vacío (R1)"]
+        B3 --> B4{"Código HTTP"}
+        B4 -->|"401"| Y1["La credencial de datos no está&lt;br/>asignada a ese endpoint"]
+        B4 -->|"404"| Y2["Ruta o método equivocado (R5).&lt;br/>El mensaje habla de endpoint inexistente"]
+        B4 -->|"200"| B5{"¿success == true?"}
+        B5 -->|"false, con HTTP 200"| Y3["R6: NO se detecta mirando el HTTP.&lt;br/>Se propaga el texto de error de DataHub&lt;br/>tal cual al historial"]
+        B5 -->|"true"| B6["Se recorre el array rows en streaming,&lt;br/>sin materializarlo (R4)"]
+        B6 --> B7["Cada valor se convierte según el&lt;br/>esquema declarado, con InvariantCulture (R3)"]
+        B7 --> B8["Lotes → pipeline → tabla interna"]
+        B8 --> B9["Corrida OK"]
+        Y1 --> YF["Corrida FALLIDA"]
+        Y2 --> YF
+        Y3 --> YF
+    end
+
+    classDef salida fill:#fee2e2,stroke:#ef4444,color:#7f1d1d;
+    classDef aviso fill:#fef3c7,stroke:#f59e0b,color:#78350f;
+    classDef ok fill:#d1fae5,stroke:#10b981,color:#065f46;
+    class X1,X2,X3,Y1,Y2,Y3,YF salida;
+    class X4,X5 aviso;
+    class B9,A10 ok;
+</pre><div id="out"></div>
+<script type="module">
+import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.esm.min.mjs';
+mermaid.initialize({startOnLoad:false,theme:'base',flowchart:{useMaxWidth:false,htmlLabels:true,nodeSpacing:40,rankSpacing:48},
+themeVariables:{fontFamily:"Segoe UI,Roboto,Arial,sans-serif",fontSize:'15px',primaryColor:'#eef2ff',
+primaryBorderColor:'#6366f1',primaryTextColor:'#1e293b',lineColor:'#64748b',clusterBkg:'#f8fafc',
+clusterBorder:'#cbd5e1',tertiaryColor:'#f1f5f9'}});
+try{
+  const {svg} = await mermaid.render('g0', document.getElementById('src').textContent);
+  document.getElementById('out').innerHTML = svg;
+  document.title = 'LISTO';
+}catch(e){
+  document.getElementById('out').innerHTML = '<pre style="color:red">'+e.message+'</pre>';
+  document.title = 'ERROR';
+}
+</script></body></html>

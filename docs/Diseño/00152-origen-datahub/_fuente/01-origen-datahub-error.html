@@ -1,0 +1,27 @@
+<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Nuevo origen — error</title><link rel="stylesheet" href="maqueta.css"></head><body>
+<div class="dialog">
+  <div class="dialog-header">Nuevo origen</div>
+  <div class="dialog-body">
+    <div class="field"><span class="flabel">Nombre *</span><div class="finput">DataHub CompLook — Producción</div></div>
+    <div class="field"><span class="flabel">Tipo</span><div class="finput">DataHub CompLook</div></div><div class="field"><span class="flabel">URL de DataHub *</span><div class="finput">http://srv-datahub:5000</div></div>
+    <div class="sect" style="border-top:0;padding-top:0;margin-top:0">Credencial del catálogo</div>
+    <div class="texto-caption texto-secundario" style="margin:-4px 0 12px">
+      Lista los endpoints (<code>GET /api/endpoints</code>). Tiene que ser un usuario administrador de DataHub.
+    </div>
+    <div class="field"><span class="flabel">Usuario del catálogo *</span><div class="finput">consuAdmin</div></div><div class="field"><span class="flabel">Contraseña del catálogo *</span><div class="finput">••••••••••</div></div>
+    <div class="sect">Credencial de los datos</div>
+    <div class="texto-caption texto-secundario" style="margin:-4px 0 12px">
+      Trae los datos en cada corrida. Tiene que estar asignada en DataHub a cada endpoint que se consuma.
+    </div>
+    <div class="field"><span class="flabel">Usuario de datos *</span><div class="finput">dataPipeline</div></div><div class="field"><span class="flabel">Contraseña de datos *</span><div class="finput">••••••••••</div></div>
+    <div style="margin-top:18px"><span class="cb"><i>&#10003;</i> Activo</span></div>
+    <div class="msg msg-err" style="margin-top:18px"><b>Falló la credencial del catálogo: 401.</b> El usuario <code>dataPipeline</code> existe en DataHub pero no es administrador, así que no puede listar endpoints. La credencial de datos no se probó.</div>
+  </div>
+  <div class="dialog-footer">
+    <button class="btn btn-out">Probar</button>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-flat">Cancelar</button>
+      <button class="btn btn-pri">Guardar</button>
+    </div>
+  </div>
+</div></body></html>
