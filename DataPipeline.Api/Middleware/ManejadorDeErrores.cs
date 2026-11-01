@@ -1,4 +1,4 @@
-// Fecha: 01/11/2026 - TAREA: 00155 - Linea: 1 - Que un error de la API diga algo.
+﻿// Fecha: 01/11/2026 - TAREA: 00155 - Linea: 1 - Que un error de la API diga algo.
 // Antes, una excepcion no atrapada salia como un 500 sin cuerpo. El Admin veia "no fue 2xx" y
 // mostraba un texto generico inventado por el, que no describia nada: el motivo real moria ahi.
 //
@@ -65,12 +65,37 @@ public sealed class ManejadorDeErrores
     /// Un mensaje que sirva para actuar. No se expone el detalle interno, pero tampoco se devuelve
     /// "ocurrio un error": las causas que el usuario PUEDE arreglar se nombran.
     /// </summary>
-    private static string Describir(Exception ex) => ex switch
+    public static string Describir(Exception ex)
     {
-        ArgumentException or FormatException or InvalidOperationException => ex.Message,
-        NotSupportedException => ex.Message,
-        UnauthorizedAccessException => "Sin permisos para esa operacion.",
-        TimeoutException => "La operacion tardo demasiado y se corto.",
-        _ => "Error interno. El detalle quedo en el log del servidor."
-    };
+        // Las causas de base se reconocen por el texto y no por el tipo, para no atar el middleware
+        // al proveedor: hoy es SQLite, manana puede ser otro y el mensaje tiene que seguir saliendo.
+        var cadena = Encadenado(ex);
+
+        if (cadena.Contains("UNIQUE constraint failed", StringComparison.OrdinalIgnoreCase))
+            return "Ya existe un registro con ese nombre. Los nombres no se pueden repetir.";
+        if (cadena.Contains("FOREIGN KEY constraint failed", StringComparison.OrdinalIgnoreCase))
+            return "Hay algo que depende de este registro, asi que no se puede completar la operacion.";
+        if (cadena.Contains("database is locked", StringComparison.OrdinalIgnoreCase))
+            return "La base esta ocupada por otro proceso. Probar de nuevo en unos segundos.";
+        if (cadena.Contains("NOT NULL constraint failed", StringComparison.OrdinalIgnoreCase))
+            return "Falta completar un campo obligatorio.";
+
+        return ex switch
+        {
+            ArgumentException or FormatException or InvalidOperationException => ex.Message,
+            NotSupportedException => ex.Message,
+            UnauthorizedAccessException => "Sin permisos para esa operacion.",
+            TimeoutException => "La operacion tardo demasiado y se corto.",
+            _ => "Error interno. El detalle quedo en el log del servidor."
+        };
+    }
+
+    /// <summary>Junta el mensaje de la excepcion y el de todas sus internas.</summary>
+    private static string Encadenado(Exception ex)
+    {
+        var sb = new System.Text.StringBuilder();
+        for (Exception? e = ex; e is not null; e = e.InnerException)
+            sb.Append(e.Message).Append(" | ");
+        return sb.ToString();
+    }
 }

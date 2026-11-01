@@ -2,6 +2,48 @@
 
 Registro de tareas ejecutadas en este repo, correlativas con `~/.claude/TAREAS.md`.
 
+## TAREA 00155 — 01/11/2026
+
+**Pedido (textual):** «ahi estuve probando y me dio errores momento de actualizar un pipeline para
+recargar la pagina pero no me dijo cual era el problema. ahi me di cuenta que faltarian unos logs
+para los errores. lo podes agregar»
+
+**Diseño previo:** no aplica. No cambia el flujo ni agrega pantallas; es manejo de errores y logging.
+
+**El sintoma y las tres causas.** Un error al guardar recargaba la página sin decir nada y no había
+dónde ir a buscarlo. Mirando el camino aparecieron tres huecos encadenados:
+
+1. **No había log a archivo en ninguna parte.** Los errores sólo existían en la consola de la ventana
+   que levanta el servicio: si nadie la estaba mirando, se perdían.
+2. **La API devolvía 500 sin cuerpo** ante una excepción no atrapada. El Admin veía «no fue 2xx».
+3. **Los servicios del Admin devolvían `bool`** y tiraban el motivo que la API sí mandaba. La
+   pantalla mostraba «revisa la API o el nombre duplicado»: dos causas posibles entre muchas, ninguna
+   confirmada, y en el caso real ninguna de las dos.
+
+**Ejecutado (ítem 1):**
+
+- `DataPipeline.Core/Logging/ArchivoLogger.cs`: proveedor propio, sin dependencias nuevas más que las
+  Abstractions de logging. Un archivo por día, rota a los 10 MB, borra a los 30 días. **Nunca tira**:
+  un logger que revienta se lleva puesta la aplicación que se quería diagnosticar, que es el peor
+  momento posible. Si no puede escribir, avisa una vez por consola y sigue.
+- `DataPipeline.Api/Middleware/ManejadorDeErrores.cs`: loguea la excepción completa con su stack y
+  responde `{ error, traceId }`. **El traceId es la pieza que faltaba**: es el mismo número en la
+  pantalla y en el archivo, así que deja de hacer falta adivinar cuál de los errores del log es el
+  que se acaba de ver. Las causas que el usuario puede arreglar se nombran por el texto del error y
+  no por el tipo, para no atar el middleware al proveedor de base.
+- `DataPipeline.Admin/Services/ErroresApi.cs`: lee el motivo venga como venga — formato propio,
+  ProblemDetails de ASP.NET (donde lo útil está en `errors`, no en `title`), texto pelado, o nada.
+  Los servicios devuelven `ResultadoApi` y las pantallas muestran el texto real.
+- EF a `Warning`: a `Information` escribe cada SQL y el archivo se vuelve ilegible justo cuando hace
+  falta leerlo.
+
+**Verificado sobre el paquete publicado**, no sólo en pruebas: se forzó un nombre duplicado real, la
+respuesta fue «Ya existe un registro con ese nombre» con su traceId, y ese mismo traceId apareció en
+`api\logs\dp-api-20261101.log` con el `UNIQUE constraint failed: Origenes.Nombre` y el stack completo.
+
+**256 pruebas** (+23: 17 del logger y la lectura de errores, 6 de los mensajes al usuario).
+
+
 ## TAREA 00154 — 30-31/10/2026
 
 **Pedido (textual):** «deberiamos tomar desde d:\sistemas\consultasgenericas\api todos los tipos de
