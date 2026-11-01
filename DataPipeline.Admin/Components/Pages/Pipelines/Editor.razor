@@ -738,9 +738,12 @@ else
         _guardando = true;
         try
         {
-            var ok = await Pipelines.GuardarAsync(ConstruirDef());
-            if (ok) Nav.NavigateTo("/pipelines");
-            else _error = "No se pudo guardar (revisa la API o el nombre duplicado).";
+            // Fecha: 01/11/2026 - TAREA: 00155 - Linea: 1 - Antes decia "revisa la API o el nombre
+            // duplicado", que son dos causas posibles entre muchas y ninguna confirmada. Ahora se
+            // muestra lo que dijo la API, con el traceId para buscarlo en el log del servidor.
+            var res = await Pipelines.GuardarAsync(ConstruirDef());
+            if (res.Ok) Nav.NavigateTo("/pipelines");
+            else _error = $"No se pudo guardar. {res.Mostrar()}";
         }
         finally { _guardando = false; }
     }

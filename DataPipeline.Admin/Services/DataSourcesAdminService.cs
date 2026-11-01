@@ -71,16 +71,31 @@ public class DataSourcesAdminService
         return JsonSerializer.Deserialize<DataSourceVista>(await r.Content.ReadAsStringAsync(), _json);
     }
 
-    public async Task<bool> GuardarAsync(DataSourceUpsert ds)
+    // Fecha: 01/11/2026 - TAREA: 00155 - Linea: 1 - Devuelven el motivo, no un bool.
+    public async Task<ResultadoApi> GuardarAsync(DataSourceUpsert ds)
     {
-        var r = await _http.PostAsJsonAsync("api/datasources", ds);
-        return r.IsSuccessStatusCode;
+        try
+        {
+            var r = await _http.PostAsJsonAsync("api/datasources", ds);
+            return await ErroresApi.DeRespuestaAsync(r);
+        }
+        catch (HttpRequestException ex)
+        {
+            return new ResultadoApi(false, $"No se pudo hablar con la API: {ex.Message}");
+        }
     }
 
-    public async Task<bool> EliminarAsync(Guid id)
+    public async Task<ResultadoApi> EliminarAsync(Guid id)
     {
-        var r = await _http.DeleteAsync($"api/datasources/{id}");
-        return r.IsSuccessStatusCode;
+        try
+        {
+            var r = await _http.DeleteAsync($"api/datasources/{id}");
+            return await ErroresApi.DeRespuestaAsync(r);
+        }
+        catch (HttpRequestException ex)
+        {
+            return new ResultadoApi(false, $"No se pudo hablar con la API: {ex.Message}");
+        }
     }
 
     public async Task<ProbarResp> ProbarAsync(Guid id)

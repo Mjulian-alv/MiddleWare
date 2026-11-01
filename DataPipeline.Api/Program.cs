@@ -8,9 +8,20 @@ using DataPipeline.Engine;
 using DataPipeline.Persistence;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.EntityFrameworkCore;
+using DataPipeline.Core.Logging;
 using Microsoft.Extensions.Logging;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Fecha: 01/11/2026 - TAREA: 00155 - Linea: 1 - Log a archivo. Sin esto, un error solo existia en la
+// consola de la ventana que levanta el servicio, y si nadie la estaba mirando se perdia.
+builder.Logging.AddArchivo(o =>
+{
+    o.Prefijo = "dp-api";
+    o.Carpeta = builder.Configuration["Logging:Archivo:Carpeta"] ?? "logs";
+    o.Minimo = Enum.TryParse<LogLevel>(builder.Configuration["Logging:Archivo:Minimo"], out var min)
+        ? min : LogLevel.Information;
+});
 
 var metaCs = builder.Configuration.GetConnectionString("Metadata") ?? "Data Source=metadata.db";
 var dataCs = builder.Configuration.GetConnectionString("Data") ?? "Data Source=data.db";
@@ -44,6 +55,10 @@ builder.Services.AddControllers();
 builder.Services.AddHostedService<DataPipeline.Api.Hosting.PipelineSchedulerHostedService>();
 
 var app = builder.Build();
+
+// Fecha: 01/11/2026 - TAREA: 00155 - Linea: 1 - Primero de todo, para que cubra tambien lo que pase
+// en autenticacion y en el ruteo.
+app.UseMiddleware<DataPipeline.Api.Middleware.ManejadorDeErrores>();
 
 // Poner al dia el esquema del almacen A al arrancar (idempotente, seguro sobre bases existentes).
 using (var scope = app.Services.CreateScope())

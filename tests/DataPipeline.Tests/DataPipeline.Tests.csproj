@@ -25,6 +25,9 @@
     <ProjectReference Include="..\..\DataPipeline.Connectors\DataPipeline.Connectors.csproj" />
     <ProjectReference Include="..\..\DataPipeline.Engine\DataPipeline.Engine.csproj" />
     <ProjectReference Include="..\..\DataPipeline.Persistence\DataPipeline.Persistence.csproj" />
+    <!-- Fecha: 01/11/2026 - TAREA: 00155 - Linea: 1 - Para probar la lectura del error que manda la
+         API (ErroresApi), que es justo la logica que antes no existia y perdia el motivo. -->
+    <ProjectReference Include="..\..\DataPipeline.Admin\DataPipeline.Admin.csproj" />
   </ItemGroup>
 
 </Project>

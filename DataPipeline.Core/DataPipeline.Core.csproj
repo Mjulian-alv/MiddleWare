@@ -6,4 +6,10 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <!-- Fecha: 01/11/2026 - TAREA: 00155 - Linea: 1 - Log a archivo: solo las abstracciones de
+       logging, que es lo minimo para definir un ILoggerProvider propio sin traer un framework. -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.0" />
+  </ItemGroup>
+
 </Project>

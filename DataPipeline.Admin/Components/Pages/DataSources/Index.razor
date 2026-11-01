@@ -374,7 +374,9 @@
                 _form.RutaCarpeta, _form.PatronArchivo, _form.Separador, _form.Encoding,
                 _form.TieneEncabezado, _form.HojaExcel, _form.Activo,
                 _form.UsuarioCatalogo, _form.PasswordCatalogo);
-            var ok = await Origenes.GuardarAsync(dto);
+            // Fecha: 01/11/2026 - TAREA: 00155 - Linea: 1 - El motivo real en vez de un generico.
+            var res = await Origenes.GuardarAsync(dto);
+            var ok = res.Ok;
             if (ok)
             {
                 _formAbierto = false;
@@ -383,7 +385,7 @@
             }
             else
             {
-                _errorForm = "No se pudo guardar (revisa la API o el nombre duplicado).";
+                _errorForm = $"No se pudo guardar. {res.Mostrar()}";
             }
         }
         finally { _guardando = false; }
@@ -416,10 +418,10 @@
         _ocupado = true;
         try
         {
-            var ok = await Origenes.EliminarAsync(_aEliminarId);
+            var res = await Origenes.EliminarAsync(_aEliminarId);
             _confirmAbierto = false;
             await Recargar();
-            Mostrar(ok, ok ? "Origen eliminado." : "No se pudo eliminar.");
+            Mostrar(res.Ok, res.Ok ? "Origen eliminado." : $"No se pudo eliminar. {res.Mostrar()}");
         }
         finally { _ocupado = false; }
     }
