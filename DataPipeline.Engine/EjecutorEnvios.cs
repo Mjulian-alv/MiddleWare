@@ -7,8 +7,10 @@
 // la mitad, las filas del ultimo lote quedarian marcadas como enviadas sin haber llegado. Entre lotes
 // se avanza por keyset (_creado, _key) y no por pagina: ver el comentario en IDataStore.LeerDesdeAsync.
 using System.Globalization;
+using System.Text.Json;
 using DataPipeline.Core.Abstractions;
 using DataPipeline.Core.Envios;
+using DataPipeline.Core.Pipelines;
 using DataPipeline.Core.Records;
 using DataPipeline.Core.Security;
 
@@ -85,14 +87,16 @@ public sealed class EjecutorEnvios
         try
         {
             var destino = _destinos.Crear(origen, _encryption);
-            await destino.EnsureTableAsync(envio.TablaDestino, ColumnasDe(lote), ct);
+            // Fecha: 02/11/2026 - TAREA: 00158 - Linea: 1 - Las fechas se deciden por lo declarado en el pipeline, no por lo que devuelve SQLite.
+            var fechas = ColumnasFecha(pipeline);
+            await destino.EnsureTableAsync(envio.TablaDestino, ColumnasDe(lote, fechas), ct);
 
             long escritas = 0;
             DateTime? maximo = envio.UltimoCreado;
 
             while (lote.Rows.Count > 0)
             {
-                var normalizado = Normalizar(lote);
+                var normalizado = Normalizar(lote, fechas);
                 escritas += await destino.WriteBatchAsync(envio.TablaDestino, normalizado, pipeline.ColumnasClave, ct);
 
                 var ultima = normalizado.Rows[^1];
@@ -120,27 +124,82 @@ public sealed class EjecutorEnvios
     /// del plan). _key y _creado no van: el destino las agrega con su tipo fijo. _procesado tampoco:
     /// es el ack de nuestros consumidores PULL, del otro lado no significa nada.
     /// </summary>
-    private static List<ColumnaDestino> ColumnasDe(RecordBatch lote) =>
+    // Fecha: 02/11/2026 - TAREA: 00158 - Linea: 1 - Las columnas de fecha salian NVARCHAR(MAX).
+    // SQLite no tiene tipo fecha: guarda el DateTime como texto y lo devuelve como string, y el tipo
+    // se inferia de ese string. Ahora las columnas declaradas como fecha se crean DATETIME2 aunque el
+    // primer valor llegue como texto (o todos sean nulos en el primer lote).
+    private static List<ColumnaDestino> ColumnasDe(RecordBatch lote, ISet<string> fechas) =>
         lote.Columns
             .Where(c => c != ServingColumns.Procesado && c != ServingColumns.Key && c != ServingColumns.Creado)
-            .Select(c => new ColumnaDestino(c,
-                lote.Rows.Select(f => f.Values.TryGetValue(c, out var v) ? v : null)
+            .Select(c => new ColumnaDestino(c, fechas.Contains(c)
+                ? typeof(DateTime)
+                : lote.Rows.Select(f => f.Values.TryGetValue(c, out var v) ? v : null)
                     .FirstOrDefault(v => v is not null)?.GetType()))
             .ToList();
 
+    private static readonly HashSet<string> TiposFecha = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "fecha", "date", "datetime", "datetime2", "smalldatetime", "datetimeoffset"
+    };
+
     /// <summary>
-    /// Saca _procesado y convierte _creado a DateTime. SQLite lo devuelve como texto; mandarlo crudo
-    /// dejaria la conversion a DATETIME2 en manos de la cultura del servidor remoto.
+    /// Columnas que el pipeline declara como fecha, con el nombre que tienen en el serving. Parte del
+    /// esquema del origen y aplica en orden los renombres y casts de cada ColumnMapTransform (el cast
+    /// gana: "date" la marca, cualquier otro tipo la desmarca). Las columnas calculadas no se infieren.
     /// </summary>
-    private static RecordBatch Normalizar(RecordBatch lote) => new()
+    public static HashSet<string> ColumnasFecha(PipelineDefinition pipeline)
+    {
+        var fechas = new HashSet<string>(
+            pipeline.EsquemaOrigen.Where(c => TiposFecha.Contains(c.Tipo)).Select(c => c.Nombre),
+            StringComparer.OrdinalIgnoreCase);
+
+        foreach (var paso in pipeline.Pasos.Where(p => p.Tipo == TipoPaso.Transformacion && p.Conector == "ColumnMapTransform"))
+        {
+            foreach (var (viejo, nuevo) in LeerMapa(paso, "rename"))
+                if (fechas.Remove(viejo)) fechas.Add(nuevo);
+            foreach (var (col, tipo) in LeerMapa(paso, "cast"))
+            {
+                if (string.Equals(tipo, "date", StringComparison.OrdinalIgnoreCase)) fechas.Add(col);
+                else fechas.Remove(col);
+            }
+        }
+        return fechas;
+    }
+
+    private static Dictionary<string, string> LeerMapa(StepDefinition paso, string clave)
+    {
+        var mapa = new Dictionary<string, string>();
+        if (paso.Configuracion.TryGetValue(clave, out var v) && v.ValueKind == JsonValueKind.Object)
+            foreach (var p in v.EnumerateObject())
+                if (p.Value.ValueKind == JsonValueKind.String) mapa[p.Name] = p.Value.GetString()!;
+        return mapa;
+    }
+
+    /// <summary>
+    /// Saca _procesado y convierte _creado y las columnas de fecha a DateTime. SQLite los devuelve como
+    /// texto; mandarlos crudos dejaria la conversion a DATETIME2 en manos de la cultura del servidor remoto.
+    /// </summary>
+    private static RecordBatch Normalizar(RecordBatch lote, ISet<string> fechas) => new()
     {
         Columns = lote.Columns.Where(c => c != ServingColumns.Procesado).ToArray(),
         Rows = lote.Rows.Select(f => new Record
         {
             Values = f.Values
                 .Where(kv => kv.Key != ServingColumns.Procesado)
-                .ToDictionary(kv => kv.Key, kv => kv.Key == ServingColumns.Creado ? ComoFecha(kv.Value) : kv.Value)
+                .ToDictionary(kv => kv.Key, kv =>
+                    kv.Key == ServingColumns.Creado ? ComoFecha(kv.Value)
+                    : fechas.Contains(kv.Key) ? FechaDeColumna(kv.Key, kv.Value)
+                    : kv.Value)
         }).ToList()
+    };
+
+    private static object? FechaDeColumna(string columna, object? valor) => valor switch
+    {
+        null => null,
+        DateTime or DateTimeOffset => valor,
+        string s when DateTime.TryParse(s, CultureInfo.InvariantCulture, DateTimeStyles.None, out var d) => d,
+        _ => throw new InvalidOperationException(
+            $"La columna '{columna}' esta declarada como fecha pero tiene el valor '{valor}', que no se puede leer como fecha.")
     };
 
     private static object ComoFecha(object? valor) => valor switch

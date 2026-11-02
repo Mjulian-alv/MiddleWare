@@ -2,6 +2,41 @@
 
 Registro de tareas ejecutadas en este repo, correlativas con `~/.claude/TAREAS.md`.
 
+## TAREA 00158 — 02/11/2026
+
+**Pedido (textual):** «ahora lo que tengo es que no me esta respetando el tipo de campo. los que eran numero los
+transforme a int o float y funcionaron bien. pero los date me los puso como nvarchar las dos veces que lo probe.»
+Numeración: un solo ítem; el 2 es un hallazgo del diagnóstico, no un pedido.
+
+**Ítems (Linea):** 1 las columnas de fecha se crean `DATETIME2` en el destino SQL Server · 2 el hydrator ya no puede
+dejar la credencial desencriptada en `metadata.db`.
+
+**Sin diseño previo ni revisión de Codex:** corrección de bugs sin cambio visible (CLAUDE.md, «Cuándo no aplica»).
+
+**Ítem 1 — causa.** El envío (`EjecutorEnvios`) infería el tipo de cada columna del primer valor que leía del serving, y
+el serving es SQLite, que no tiene tipo fecha: guarda el `DateTime` como texto y lo devuelve como `string`. Resultado:
+`NVARCHAR(MAX)`. Los números sí funcionaban porque SQLite conserva INTEGER/REAL. No lo arreglaba ningún cast del Paso 3:
+el cast convierte antes de escribir al serving, y ahí el tipo se pierde igual.
+**Corrección:** `EjecutorEnvios.ColumnasFecha` deduce las columnas de fecha de lo que el pipeline declara —tipo del
+esquema del origen (`fecha`/`date`/`datetime`/…), con los `rename` y `cast` de cada `ColumnMapTransform` aplicados en
+orden (el cast gana)— y esas columnas se crean `DATETIME2` y viajan como `DateTime`, aunque el primer lote venga con
+nulos. Una columna de texto con forma de fecha que nadie declaró fecha sigue siendo texto: no se adivina por el
+contenido. Un valor que no se puede leer como fecha falla con el nombre de la columna.
+**Límite:** `CREATE TABLE` es idempotente, así que una tabla ya creada en el destino conserva sus tipos viejos. Hay que
+borrarla una vez para que se recree bien.
+
+**Ítem 2 — hallazgo.** `GetByIdAsync` del pipeline devolvía la entidad con tracking. `RunsController` la hidrata
+(inyecta `baseUrl`/`usuario`/`password`, o `connectionString`, desencriptados, en memoria) y después
+`ActualizarWatermarkAsync` hacía `SaveChanges` sobre el mismo `DbContext`: guardaba esa credencial **en texto plano** en
+`metadata.db`. Además, desde ese momento el pipeline ignoraba los cambios al origen, porque una config inline gana
+sobre el origen. El scheduler no estaba afectado (usa lecturas sin tracking).
+**Corrección:** `GetByIdAsync` y `GetByNombreAsync` de `EfPipelineStore` van con `AsNoTracking`. La prueba nueva falló
+antes del fix y pasa después.
+**Pendiente del dueño:** los `metadata.db` donde ya se corrió un pipeline a mano quedaron con la credencial guardada en
+el paso; hay que limpiarla (reguardar el pipeline desde el Admin no alcanza si el formulario conserva esas claves).
+
+**Pruebas:** 304 verdes (Persistence 37, Tests 224, Api.Tests 43), build `--no-incremental` con 0 errores.
+
 ## TAREA 00157 — 02/11/2026
 
 **Pedido (textual):** «podes modificar el proyecto d:\sistemas\middelware para que se integre con apphub» y, al
