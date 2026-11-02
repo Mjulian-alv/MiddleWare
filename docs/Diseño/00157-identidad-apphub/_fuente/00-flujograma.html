@@ -6,11 +6,11 @@ flowchart TD
     C -- No --> L
     C -- "Sí, repetido" --> R
     C -- "Sí, uno solo" --> V{Valida: 3 partes, alg HS256,<br/>firma, iss, aud, exp, iat, correo}
-    V -- "Falla (formato, algoritmo, firma,<br/>emisor, destinatario, vencido,<br/>futuro, correo)" --> R[Advertencia en el log SIN token<br/>Items: AppHub.Aviso = rechazada]
+    V -- "Falla (formato, algoritmo, firma,<br/>emisor, destinatario, vencido,<br/>futuro, correo)" --> R[Advertencia en el log SIN token<br/>User = claim «rechazada»]
     R --> LA[Login propio con aviso<br/>«AppHub no pudo confirmar tu identidad»]
-    V -- Todo bien --> I[Items: identidad correo + nombre]
-    I --> K[Se crea el circuito Blazor]
-    K --> S[AdminSessionState.AutenticarDesdeAppHub<br/>Origen = AppHub, administrador]
+    V -- Todo bien --> I[HttpContext.User = claims<br/>correo + nombre]
+    I --> K["Se crea el circuito Blazor<br/>(toma el User del pedido)"]
+    K --> S[AdminSessionState.InicializarAsync<br/>Origen = AppHub, administrador]
     S --> U[Log: correo que entró]
     U --> P[Pantallas del Admin<br/>cabecera con el correo, sin «Salir»]
     P --> Q{Qué hace la persona}

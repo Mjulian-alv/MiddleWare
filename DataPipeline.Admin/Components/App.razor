@@ -1,10 +1,12 @@
-﻿<!DOCTYPE html>
+﻿@inject IConfiguration Config
+<!DOCTYPE html>
 <html lang="es">
 
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <base href="/" />
+    @* Fecha: 02/11/2026 - TAREA: 00157 - Linea: 4 - Con PathBase (/datapipeline) el base href lleva el prefijo; se arma desde la config y no desde el host del pedido, que detras del proxy es el interno. *@
+    <base href="@BaseHref" />
     <ResourcePreloader />
     <link href="_content/Syncfusion.Blazor.Themes/bootstrap5.css" rel="stylesheet" />
     <link rel="stylesheet" href="@Assets["utilities.css"]" />
@@ -23,3 +25,15 @@
 </body>
 
 </html>
+
+@code {
+    // Fecha: 02/11/2026 - TAREA: 00157 - Linea: 4 - "/" sin PathBase; "/datapipeline/" con PathBase.
+    private string BaseHref
+    {
+        get
+        {
+            var pb = Config["PathBase"]?.Trim('/');
+            return string.IsNullOrEmpty(pb) ? "/" : "/" + pb + "/";
+        }
+    }
+}
