@@ -1,7 +1,16 @@
-# Origen DataHub CompLook — diseño previo
+﻿# Origen DataHub CompLook — diseño previo
 
-> **TAREA:** 00152 · **Fecha:** 30/10/2026 · **Repo:** `D:\Sistemas\MiddleWare` (DataPipeline)
-> **Estado:** diseño, **sin implementar**.
+> **TAREA:** 00154 · **Fecha:** 30/10/2026 · **Repo:** `D:\Sistemas\MiddleWare` (DataPipeline)
+> **Estado:** **implementado** el 31/10/2026, en la rama `tarea-00154-origen-datahub`.
+>
+> Verificado contra un doble de DataHub que habla su mismo protocolo (incluido el reparto de
+> credenciales): catálogo → combo → parámetros declarados → columnas desde el esquema guardado →
+> corrida. Primera corrida 3 filas con `watermark=` vacío, segunda 0 filas con el watermark ya
+> avanzado. **No se probó contra un DataHub real ni contra Oracle.**
+>
+> Tres cosas que la implementación desmintió y que están corregidas en el texto: **R1** (no es
+> "mandar siempre el watermark"), **D4** (el tipo se persiste por nombre, no por índice) y **D6**
+> (nueva: "Probar" verifica la credencial del catálogo, no la de datos).
 >
 > El pedido original era "traer a DataPipeline todos los tipos de conexión de DataHub, con foco en
 > Oracle". Durante el diseño el pedido cambió: en vez de portar los drivers, **DataPipeline consume
@@ -163,11 +172,23 @@ de **datos**; la del catálogo no se usa en corrida).
 
 ## 5. Reglas
 
-**R1 — El watermark se manda siempre, aun vacío.**
-DataHub arma los parámetros con lo que recibe; si `watermark` no viene, Dapper no lo declara y el SQL
-que lo menciona falla. Pero **vacío no es NULL**: todos los parámetros llegan como texto, así que el
-`WHERE @watermark IS NULL OR …` de siempre no alcanza. El SQL del endpoint tiene que tratar el
-vacío como "primera corrida":
+**R1 — Se mandan exactamente los parámetros que el endpoint declara: ni uno menos, ni uno de más.**
+
+> Corregida al implementar (31/10/2026). La versión original decía "el watermark se manda siempre".
+> Es media verdad y la otra media rompe: `ArmarParametros` de DataHub mete en el comando **todos**
+> los parámetros que recibe, estén o no en el SQL (`SqlQueryExecutorBase.cs:121`). Un parámetro de
+> más hace fallar la consulta — en Oracle con un `ORA-01036` que no orienta a nada.
+
+- **Ni uno menos:** si el endpoint declara `watermark` y no se manda, Dapper no lo declara y el SQL
+  que lo menciona falla. Por eso, si está declarado, se manda **siempre**, vacío en la primera corrida.
+- **Ni uno de más:** nunca se manda un parámetro que el endpoint no declare, aunque venga en el
+  contexto de la corrida.
+
+Lo que resuelve las dos mitades: el paso guarda los nombres **declarados** por el endpoint, y en
+corrida cada uno toma su valor del contexto si está, o el valor fijo si no.
+
+Y **vacío no es NULL**: todos los parámetros llegan como texto, así que el `WHERE @watermark IS NULL
+OR …` de siempre no alcanza. El SQL del endpoint tiene que tratar el vacío como "primera corrida":
 
 ```sql
 WHERE :watermark IS NULL OR :watermark = '' OR fecha_mod > …
@@ -230,8 +251,9 @@ nada que ver. Los cuatro pasan a ser `switch` exhaustivos sobre `TipoDataSource`
 | **D1** | **El parseo es en streaming** (`Utf8JsonReader`), no `JsonDocument`. | Es la única pieza de código realmente nueva (~80 líneas, testeables con un JSON armado a mano). La alternativa, deserializar el `QueryResultDto` completo, duplica en DataPipeline la memoria que DataHub ya gastó. Con 250 mil filas eso se nota. |
 | **D2** | **Dos credenciales, las dos obligatorias.** | No es elegible: `GET /api/endpoints` pide rol Admin y `/api/query` pide un `ApiUser` asignado al endpoint. El catálogo no es opcional, así que la credencial admin tampoco. Consecuencia operativa: hay que crear un `ApiUser` para DataPipeline en DataHub y asignarlo a cada endpoint a consumir. |
 | **D3** | **Las columnas salen de `ResultSchemaJson`.** | DataHub ya guardó el esquema cuando el endpoint pasó una prueba. Traer columnas no ejecuta la consulta: ni espera, ni carga Oracle, ni pide el parámetro obligatorio. **Fallback:** si el endpoint nunca pasó una prueba, `ResultSchemaJson` viene vacío; ahí el Admin avisa que hay que probar el endpoint en DataHub, y ofrece ejecutar la consulta como segunda opción. |
-| **D4** | **El tipo se llama `DataHubCompLook`.** | Deja libre el nombre para un conector REST genérico, que es otra idea y otro tipo. El enum crece **al final**: los valores 0-2 ya están guardados en `metadata.db`. |
+| **D4** | **El tipo se llama `DataHubCompLook`.** | Deja libre el nombre para un conector REST genérico, que es otra idea y otro tipo. El enum crece **al final**, pero no por la base: `Tipo` se persiste **por nombre** (`HasConversion<string>` en `MetadataDbContext`), así que insertar en el medio no rompería `metadata.db`. Lo que sí rompe es el Admin, que mapea el combo **por índice** (`0=SqlServer, 1=Csv, 2=Xlsx`). *(Precisión corregida al implementar: la versión original decía que los valores 0-2 estaban guardados en la base.)* |
 | **D5** | **Sin mapeo de columnas ni transformación en el origen.** | Lo que el endpoint devuelve es lo que entra al pipeline. Renombrar y castear ya lo hace `ColumnMapTransform`, igual que en la TAREA 00038. |
+| **D6** | **"Probar" verifica la credencial del catálogo, no la de datos.** *(Agregada al implementar, 31/10/2026.)* | DataHub no tiene forma de validar un `ApiUser` sin ejecutar un endpoint, y ejecutar corre una consulta de verdad contra la base de ellos — demasiado para un botón que se aprieta sin pensar. El Probar informa cuántos endpoints hay, de qué motores y cuántos tienen esquema guardado, y dice explícitamente que la credencial de datos se verifica al traer columnas o al correr. La maqueta `01-origen-datahub.png` se corrigió: prometía que probaba las dos. |
 
 ---
 
@@ -246,7 +268,7 @@ nada que ver. Los cuatro pasan a ser `switch` exhaustivos sobre `TipoDataSource`
 | 5 | 3 | `IConnectionTester.ProbarDataHubAsync` e `ISchemaDiscoverer.DescubrirDataHubAsync` (**D3**) + el `switch` de `DataSourcesController` (**R8**) | Probar conexión contra DataHub caído, con credencial mala y OK; columnas con y sin `ResultSchemaJson` |
 | 6 | 2, 4 | Admin: los campos del origen, el combo de endpoints, el editor de parámetros y el `switch` de `Editor.razor` (**R8**) | Según las maquetas de §9 |
 
-Cada bloque lleva su comentario `Fecha: dd/MM/yyyy - TAREA: 00152 - Linea: N - …` con el ítem que lo
+Cada bloque lleva su comentario `Fecha: dd/MM/yyyy - TAREA: 00154 - Linea: N - …` con el ítem que lo
 originó.
 
 ---

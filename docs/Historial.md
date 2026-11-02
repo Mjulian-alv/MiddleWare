@@ -1,6 +1,128 @@
-# Historial — DataPipeline (MiddleWare)
+﻿# Historial — DataPipeline (MiddleWare)
 
 Registro de tareas ejecutadas en este repo, correlativas con `~/.claude/TAREAS.md`.
+
+## TAREA 00155 — 01/11/2026
+
+**Pedido (textual):** «ahi estuve probando y me dio errores momento de actualizar un pipeline para
+recargar la pagina pero no me dijo cual era el problema. ahi me di cuenta que faltarian unos logs
+para los errores. lo podes agregar»
+
+**Diseño previo:** no aplica. No cambia el flujo ni agrega pantallas; es manejo de errores y logging.
+
+**El sintoma y las tres causas.** Un error al guardar recargaba la página sin decir nada y no había
+dónde ir a buscarlo. Mirando el camino aparecieron tres huecos encadenados:
+
+1. **No había log a archivo en ninguna parte.** Los errores sólo existían en la consola de la ventana
+   que levanta el servicio: si nadie la estaba mirando, se perdían.
+2. **La API devolvía 500 sin cuerpo** ante una excepción no atrapada. El Admin veía «no fue 2xx».
+3. **Los servicios del Admin devolvían `bool`** y tiraban el motivo que la API sí mandaba. La
+   pantalla mostraba «revisa la API o el nombre duplicado»: dos causas posibles entre muchas, ninguna
+   confirmada, y en el caso real ninguna de las dos.
+
+**Ejecutado (ítem 1):**
+
+- `DataPipeline.Core/Logging/ArchivoLogger.cs`: proveedor propio, sin dependencias nuevas más que las
+  Abstractions de logging. Un archivo por día, rota a los 10 MB, borra a los 30 días. **Nunca tira**:
+  un logger que revienta se lleva puesta la aplicación que se quería diagnosticar, que es el peor
+  momento posible. Si no puede escribir, avisa una vez por consola y sigue.
+- `DataPipeline.Api/Middleware/ManejadorDeErrores.cs`: loguea la excepción completa con su stack y
+  responde `{ error, traceId }`. **El traceId es la pieza que faltaba**: es el mismo número en la
+  pantalla y en el archivo, así que deja de hacer falta adivinar cuál de los errores del log es el
+  que se acaba de ver. Las causas que el usuario puede arreglar se nombran por el texto del error y
+  no por el tipo, para no atar el middleware al proveedor de base.
+- `DataPipeline.Admin/Services/ErroresApi.cs`: lee el motivo venga como venga — formato propio,
+  ProblemDetails de ASP.NET (donde lo útil está en `errors`, no en `title`), texto pelado, o nada.
+  Los servicios devuelven `ResultadoApi` y las pantallas muestran el texto real.
+- EF a `Warning`: a `Information` escribe cada SQL y el archivo se vuelve ilegible justo cuando hace
+  falta leerlo.
+
+**Verificado sobre el paquete publicado**, no sólo en pruebas: se forzó un nombre duplicado real, la
+respuesta fue «Ya existe un registro con ese nombre» con su traceId, y ese mismo traceId apareció en
+`api\logs\dp-api-20261101.log` con el `UNIQUE constraint failed: Origenes.Nombre` y el stack completo.
+
+**256 pruebas** (+23: 17 del logger y la lectura de errores, 6 de los mensajes al usuario).
+
+
+## TAREA 00154 — 30-31/10/2026
+
+**Pedido (textual):** «deberiamos tomar desde d:\sistemas\consultasgenericas\api todos los tipos de
+conexion que tiene. porque tengo para probar casos reales pero con oracle.» Y después, el giro que
+cambió el alcance: «y si usamos la api de consultas genericas, anotalo que de ahora en adelante se
+llama datahub para futuras referencias. se podria para no hacer un gran trabajo ahora??», más «si te
+paso la url de la api. vos me traerias todos los endpoints que estan definidos en datahub para
+seleccionar y como hacemos para poner los parametros». El origen se llama **DataHub CompLook** por
+pedido explícito, para dejar libre el nombre de un conector REST genérico futuro.
+
+**Numeración — se renumeró dos veces.** Empezó como **00151**: lo tomó ConciliadorContable
+mientras se diseñaba, y se pasó a **00152** sin código escrito. Al cerrar, el 00152 también estaba
+tomado (ConsultasGenericas) y el 00153 igual (ArcaAutomatizacion), así que quedó en **00154**. El
+contenido —comentarios de versionado, carpeta de diseño, documentos— dice 00154. **Los mensajes de
+los cuatro commits de código siguen diciendo 00152**, por el mismo criterio que se usó en el choque
+00014/00015: no se reescriben commits ya hechos. El quinto commit es el de la renumeración.
+
+**Diseño:** `docs/Diseño/00154-origen-datahub/` (guía, flujograma y 7 maquetas).
+
+**Por qué no se portaron los drivers:** los contratos son incompatibles. DataPipeline lee en
+streaming (`IAsyncEnumerable<RecordBatch>`), DataHub materializa (`QueryResultDto`). No son
+adaptables uno al otro: había que reescribir siete ejecutores, no copiarlos. Consumir la API de
+DataHub alcanza a Oracle, MySQL, MariaDB, PostgreSQL y SQL Server con un solo conector.
+
+**Ejecutado (4 ítems, 4 commits):**
+
+- **Ítem 1 — El origen.** `TipoDataSource.DataHubCompLook`; `DataHubLector` recorre el array `rows`
+  con `Utf8JsonReader` sobre el stream, sin materializarlo; `DataHubSource` arma la llamada y
+  autentica. Conversión de valores por el esquema declarado, siempre con `InvariantCulture`.
+  `PipelineHydrator` pasa de `if SqlServer … else archivo` a `switch` exhaustivo.
+- **Ítem 2 — El catálogo.** `IDataHubCatalogo` + `GET /api/datasources/{id}/endpoints`. Filtra los
+  inactivos y mapea ruta, método, motor, parámetros declarados y `ResultSchemaJson`.
+- **Ítem 3 — Probar y traer columnas.** Las columnas salen del esquema que DataHub ya guardó, sin
+  ejecutar nada. `DataSourcesController.Probar`/`.Columnas` pasan a `switch` por tipo.
+- **Ítem 4 — Admin.** Diálogo del origen con las dos credenciales rotuladas; Paso 1 con combo de
+  endpoints, parámetros declarados y el watermark como no editable.
+
+**Tres bugs encontrados al construir, no al planificar:**
+
+1. **Fila partida entre dos lecturas del stream.** Al detectar que una fila no llegó entera, el
+   `StartObject` ya estaba consumido: esa fila se perdía **en silencio** — menos filas y ningún
+   error. Se retrocede el lector. Probado con cortes cada 1, 7, 13, 64 y 4096 bytes.
+2. **La regla R1 estaba mal.** Decía "mandar siempre el watermark". `ArmarParametros` de DataHub
+   mete en el comando **todos** los parámetros que recibe, estén o no en el SQL, así que uno de más
+   rompe la consulta (en Oracle, `ORA-01036`). Se manda exactamente lo que el endpoint declara.
+3. **`Editor.razor:434` tenía `_ => "SqlServerSource"`.** Un origen DataHub se guardaba con el
+   conector equivocado: no fallaba al guardar, fallaba al correr con un error de conexión que no
+   tenía nada que ver con la causa.
+
+**Verificación en el navegador** (lo que en tareas anteriores quedaba como «sin ver la pantalla»):
+se levantó un doble de DataHub que habla su mismo protocolo, incluido el reparto de credenciales
+(el admin no puede leer datos; el ApiUser no puede listar el catálogo). Se recorrió el circuito
+completo desde el Admin: alta del origen → Probar → catálogo → endpoint → parámetros → columnas →
+guardar → correr. **Primera corrida: 3 filas, con `watermark=` vacío en la URL. Segunda: 0 filas,
+con el watermark ya avanzado a `2026-10-30T16:44:00`.** Probando la pantalla apareció un cuarto
+hallazgo que las pruebas no veían: al editar un pipeline guardado no se mostraba qué endpoint tenía
+configurado. Corregido.
+
+**Lo que NO se probó:** un DataHub real y una base Oracle. Todo lo verificado es contra el doble.
+
+**Revisión de Codex (ronda 1):** `docs/Revisiones/00154-review-1.md`. **Cinco hallazgos, los cinco
+corregidos.** Los dos que más importan: el endpoint se identificaba sólo por la ruta, cuando DataHub
+lo busca por ruta **y** método (la misma ruta puede estar publicada como GET y como POST); y editar
+un pipeline guardado le cambiaba el método a GET y le borraba el esquema, en silencio, porque al
+cargar no se restauraban esos dos campos y al guardar se reescribían igual. Codex no encontró nada
+en seguridad ni en el parseo en streaming. 233 pruebas (+5 de regresión).
+
+Para correrla hubo que sortear el sandbox: se le pegó la guía y los 144 KB del diff en el prompt, así
+no necesitó terminal, ni GitHub, ni aflojar permisos.
+
+**Reparto con Codex (diseño):** no se pudo usar. El sandbox de Codex en esta máquina se bloquea a sí mismo
+(levanta sus propios helpers MCP, que toman los binarios del runtime, y después el paso de permisos
+falla sobre esos mismos archivos). Se diagnosticó y se arregló una causa real —la carpeta del repo
+había quedado **sin dueño**, y sin ser dueño no se pueden escribir ACLs—, pero quedó el bloqueo que
+Codex se produce solo. **El flujograma y las maquetas los hizo Claude**, y la revisión de la Etapa 4
+quedó pendiente: decide el dueño del pedido.
+
+**Estado:** 228 pruebas verdes, build Release sin errores. 4 commits en la rama
+`tarea-00154-origen-datahub`, sin mergear ni pushear.
 
 ## TAREA 00014 / TAREA 00015 — 03-05/09/2026
 

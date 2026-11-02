@@ -1,14 +1,32 @@
-using System.Net.Http.Headers;
+﻿using System.Net.Http.Headers;
 using System.Text;
 using DataPipeline.Admin.Components;
 using DataPipeline.Admin.Services;
+using DataPipeline.Core.Logging;
 using Syncfusion.Blazor;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Fecha: 01/11/2026 - TAREA: 00155 - Linea: 1 - Log a archivo. En Blazor Server una excepcion no
+// atrapada voltea el circuito: la pagina se recarga sola y el motivo no llega nunca a la pantalla.
+// Con esto, por lo menos, queda escrito donde se lo puede ir a buscar.
+builder.Logging.AddArchivo(o =>
+{
+    o.Prefijo = "dp-admin";
+    o.Carpeta = builder.Configuration["Logging:Archivo:Carpeta"] ?? "logs";
+    o.Minimo = Enum.TryParse<LogLevel>(builder.Configuration["Logging:Archivo:Minimo"], out var min)
+        ? min : LogLevel.Information;
+});
+
 // Razor Components con renderizado interactivo en servidor.
 builder.Services.AddRazorComponents()
-    .AddInteractiveServerComponents();
+    .AddInteractiveServerComponents(o =>
+    {
+        // Fecha: 01/11/2026 - TAREA: 00155 - Linea: 1 - En Development el motivo del error del
+        // circuito llega al navegador; en Production no, para no filtrar internals. En los dos
+        // casos queda completo en el log a archivo.
+        o.DetailedErrors = builder.Environment.IsDevelopment();
+    });
 
 // Syncfusion. La licencia se registra desde config "SyncfusionLicenseKey" (o variable de entorno);
 // NO se hardcodea en el repo. Sin clave, Syncfusion muestra un banner de trial pero funciona.

@@ -1,4 +1,4 @@
-using DataPipeline.Core.DataSources;
+﻿using DataPipeline.Core.DataSources;
 using DataPipeline.Core.Pipelines;
 using DataPipeline.Persistence;
 using Microsoft.Data.Sqlite;
@@ -118,5 +118,74 @@ public class MetadataSchemaInitializerTests
         var cols = await ColumnasDe(cn, "Pipelines");
         Assert.Contains("ColumnaWatermark", cols);
         Assert.Contains("UltimoWatermark", cols);
+    }
+
+    // Fecha: 31/10/2026 - TAREA: 00154 - Linea: 2 - Origen DataHub CompLook: las dos columnas de la
+    // credencial del catalogo tienen que existir y sobrevivir el ida y vuelta por EF.
+    [Fact]
+    public async Task Guarda_y_recupera_un_origen_DataHub_con_las_dos_credenciales()
+    {
+        var cs = NuevaDb();
+        await using (var cn = new SqliteConnection(cs))
+        {
+            await cn.OpenAsync();
+            await MetadataSchemaInitializer.EnsureAsync(cn, null);
+        }
+
+        var id = Guid.NewGuid();
+        await using (var ctx = Ctx(cs))
+        {
+            ctx.Origenes.Add(new DataSource
+            {
+                Id = id, Nombre = "dh1", Tipo = TipoDataSource.DataHubCompLook,
+                BaseUrl = "http://srv-datahub:5000",
+                Username = "dataPipeline", Password = "enc-datos",
+                UsuarioCatalogo = "consuAdmin", PasswordCatalogo = "enc-catalogo",
+                Activo = true, CreatedAt = DateTime.UtcNow
+            });
+            await ctx.SaveChangesAsync();
+        }
+
+        await using var ctx2 = Ctx(cs);
+        var leido = await ctx2.Origenes.FindAsync(id);
+        Assert.NotNull(leido);
+        Assert.Equal(TipoDataSource.DataHubCompLook, leido!.Tipo);
+        Assert.Equal("http://srv-datahub:5000", leido.BaseUrl);
+        Assert.Equal("enc-datos", leido.Password);
+        Assert.Equal("consuAdmin", leido.UsuarioCatalogo);
+        Assert.Equal("enc-catalogo", leido.PasswordCatalogo);
+    }
+
+    // Fecha: 31/10/2026 - TAREA: 00154 - Linea: 2 - Una base anterior a esta tarea no tiene las dos
+    // columnas nuevas: el ALTER tiene que agregarlas sin perder lo que ya habia.
+    [Fact]
+    public async Task Agrega_las_credenciales_de_catalogo_sobre_una_base_vieja()
+    {
+        var cs = NuevaDb();
+        await using var cn = new SqliteConnection(cs);
+        await cn.OpenAsync();
+
+        await Ejecutar(cn, """
+            CREATE TABLE "Origenes" (
+                "Id" TEXT NOT NULL PRIMARY KEY, "Nombre" TEXT NOT NULL, "Tipo" TEXT NOT NULL,
+                "ConnectionString" TEXT NULL, "Username" TEXT NULL, "Password" TEXT NULL,
+                "BaseUrl" TEXT NULL, "Activo" INTEGER NOT NULL, "CreatedAt" TEXT NOT NULL,
+                "UpdatedAt" TEXT NULL
+            )
+            """);
+        await Ejecutar(cn, """
+            INSERT INTO "Origenes" ("Id","Nombre","Tipo","Activo","CreatedAt")
+            VALUES ('11111111-1111-1111-1111-111111111111','viejo','SqlServer',1,'2026-01-01T00:00:00')
+            """);
+
+        await MetadataSchemaInitializer.EnsureAsync(cn, null);
+
+        var cols = await ColumnasDe(cn, "Origenes");
+        Assert.Contains("UsuarioCatalogo", cols);
+        Assert.Contains("PasswordCatalogo", cols);
+
+        await using var cmd = cn.CreateCommand();
+        cmd.CommandText = """SELECT COUNT(*) FROM "Origenes" WHERE "Nombre" = 'viejo'""";
+        Assert.Equal(1L, (long)(await cmd.ExecuteScalarAsync())!);
     }
 }

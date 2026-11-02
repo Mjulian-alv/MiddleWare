@@ -1,4 +1,4 @@
-using System.Net.Http.Json;
+﻿using System.Net.Http.Json;
 using System.Text.Json;
 using DataPipeline.Core.Pipelines;
 
@@ -26,22 +26,59 @@ public class PipelinesAdminService
         return JsonSerializer.Deserialize<PipelineDefinition>(await r.Content.ReadAsStringAsync(), _json);
     }
 
-    public async Task<bool> GuardarAsync(PipelineDefinition def)
+    // Fecha: 01/11/2026 - TAREA: 00155 - Linea: 1 - Devuelven el motivo, no un bool. Guardar un
+    // pipeline y que la pantalla solo dijera "no se pudo guardar" obligaba a adivinar que paso.
+    public async Task<ResultadoApi> GuardarAsync(PipelineDefinition def)
     {
-        var r = await _http.PostAsJsonAsync("api/pipelines", def);
-        return r.IsSuccessStatusCode;
+        try
+        {
+            var r = await _http.PostAsJsonAsync("api/pipelines", def);
+            return await ErroresApi.DeRespuestaAsync(r);
+        }
+        catch (HttpRequestException ex)
+        {
+            return new ResultadoApi(false, $"No se pudo hablar con la API: {ex.Message}");
+        }
+        catch (TaskCanceledException)
+        {
+            return new ResultadoApi(false, "La API no respondio a tiempo al guardar.");
+        }
     }
 
-    public async Task<bool> EliminarAsync(Guid id)
+    public async Task<ResultadoApi> EliminarAsync(Guid id)
     {
-        var r = await _http.DeleteAsync($"api/pipelines/{id}");
-        return r.IsSuccessStatusCode;
+        try
+        {
+            var r = await _http.DeleteAsync($"api/pipelines/{id}");
+            return await ErroresApi.DeRespuestaAsync(r);
+        }
+        catch (HttpRequestException ex)
+        {
+            return new ResultadoApi(false, $"No se pudo hablar con la API: {ex.Message}");
+        }
     }
 
-    public async Task<RunResultDto?> CorrerAsync(Guid id)
+    /// <summary>Corre el pipeline. Si falla, el motivo viene en Error en vez de volver null.</summary>
+    public async Task<(RunResultDto? Corrida, ResultadoApi Resultado)> CorrerAsync(Guid id)
     {
-        var r = await _http.PostAsync($"api/run/{id}", null);
-        if (!r.IsSuccessStatusCode) return null;
-        return JsonSerializer.Deserialize<RunResultDto>(await r.Content.ReadAsStringAsync(), _json);
+        try
+        {
+            var r = await _http.PostAsync($"api/run/{id}", null);
+            var res = await ErroresApi.DeRespuestaAsync(r);
+            if (!res.Ok) return (null, res);
+
+            var dto = JsonSerializer.Deserialize<RunResultDto>(await r.Content.ReadAsStringAsync(), _json);
+            return dto is null
+                ? (null, new ResultadoApi(false, "La API devolvio una respuesta vacia al correr."))
+                : (dto, ResultadoApi.Bien);
+        }
+        catch (HttpRequestException ex)
+        {
+            return (null, new ResultadoApi(false, $"No se pudo hablar con la API: {ex.Message}"));
+        }
+        catch (TaskCanceledException)
+        {
+            return (null, new ResultadoApi(false, "La corrida supero el tiempo de espera del panel."));
+        }
     }
 }

@@ -1,4 +1,4 @@
-@page "/pipelines"
+﻿@page "/pipelines"
 @inject PipelinesAdminService Pipelines
 @inject NavigationManager Nav
 
@@ -57,18 +57,21 @@
         _mensaje = null;
         try
         {
-            var r = await Pipelines.CorrerAsync(id);
-            if (r is null)
+            // Fecha: 01/11/2026 - TAREA: 00155 - Linea: 1 - Se distinguen dos cosas que antes se
+            // mezclaban: que la corrida no haya podido ARRANCAR (la API no contesto, credenciales)
+            // y que haya arrancado y FALLADO (ahi el error lo manda la corrida misma).
+            var (corrida, res) = await Pipelines.CorrerAsync(id);
+            if (!res.Ok)
             {
-                _mensaje = "No se pudo correr (revisa la API o las credenciales).";
+                _mensaje = $"No se pudo correr. {res.Mostrar()}";
                 _mensajeOk = false;
             }
             else
             {
-                _mensajeOk = r.Success;
-                _mensaje = r.Success
-                    ? $"Corrida OK: leidas {r.RowsRead}, escritas {r.RowsWritten}."
-                    : $"Corrida con error: {r.Error}";
+                _mensajeOk = corrida!.Success;
+                _mensaje = corrida.Success
+                    ? $"Corrida OK: leidas {corrida.RowsRead}, escritas {corrida.RowsWritten}."
+                    : $"Corrida con error: {corrida.Error}";
             }
             _items = await Pipelines.ObtenerTodosAsync();
         }
