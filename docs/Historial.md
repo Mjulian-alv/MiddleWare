@@ -2,6 +2,49 @@
 
 Registro de tareas ejecutadas en este repo, correlativas con `~/.claude/TAREAS.md`.
 
+## TAREA 00157 — 02/11/2026
+
+**Pedido (textual):** «podes modificar el proyecto d:\sistemas\middelware para que se integre con apphub» y, al
+aclararlo: «lo que quiero que hagas es el trabajo de modificar los endpoint para que se pueda usar datapipeline.admin
+en apphub» / «mismo trabajo que de hizo en conciliador» (TAREA 00140). Numeración: «igual que conciliador».
+
+**Ítems (Linea):** 1 sección `AppHub` y validación del token `X-AppHub-Identidad` · 2 usuario de AppHub ·
+3 sesión (sin «Salir», login propio como respaldo con aviso) · 4 correr detrás de AppHub (`PathBase`, https, rutas).
+
+**Diseño previo:** `docs/Diseño/00157-identidad-apphub/` (guía, flujograma y 2 maquetas). Codex no pudo hacerlo (su
+sandbox solo escribe en `D:\Sistemas\Concentrador` y su terminal no arranca): el flujograma y las maquetas los hizo Claude.
+
+**Decisión de diseño:** el Admin tiene un solo usuario fijo (`dpAdmin`), sin usuarios ni permisos. **Quien AppHub deja
+abrir entra como administrador**: excepción al punto 4 del contrato («el primer ingreso nunca da permisos»). Elegida por
+quien hizo el pedido.
+
+**Qué se hizo** (rama `tarea-00157-identidad-apphub`, `DataPipeline.Admin`):
+- `TokenAppHub` e `IdentidadAppHub` (middleware), portados del Conciliador. **No hay cookie**: la sesión del Admin vive en
+  el circuito de Blazor, así que el middleware deja la identidad como claims en `HttpContext.User` y Blazor la toma del
+  pedido que crea el circuito. `AdminSessionState.InicializarAsync` la lee. Sin `AppHub:ClaveCompartida` todo sigue igual.
+- `MainLayout` oculta «Salir» si la sesión vino de AppHub; `Login` muestra «AppHub no pudo confirmar tu identidad».
+- **`PathBase`** y `ForzarHttps`. Lo más grande del cambio: ~25 navegaciones y enlaces absolutos (`/pipelines`, `/login`, `/`)
+  sacaban a la persona del prefijo; pasaron a relativos. `<base href>` sale de la config, no del host del pedido.
+- `docs/Despliegue-AppHub.md` (alta en AppHub, clave, `PathBase`, qué tiene que cumplir el proxy).
+- 41 pruebas nuevas (297 en total, 0 fallas).
+
+**Verificado en navegador** con el Admin real y un proxy de prueba que agrega el encabezado firmado a cada pedido,
+websocket incluido: token correcto → entra solo, con el correo y sin «Salir», interactivo y bajo `/datapipeline/`; firma mala →
+login con aviso; sin encabezado → login normal; `/login` con identidad válida → inicio.
+
+**Revisión:** `docs/Revisiones/00157-review-1.md` (ronda 1 de 2). **La hizo un subagente leyendo el diff, no Codex**
+(el sandbox de Codex no arranca). 8 hallazgos: se corrigieron el 1 (vida del token acotada), el 4 (carrera en
+`InicializarAsync`), el 8 (comentarios por bloque) y parte del 5 (correo con caracteres de control); el 3, el 6 y el 7 no
+eran un problema; el 2 es un riesgo aceptado (ver abajo). No hay ronda 2.
+
+**Pendiente del dueño:**
+- **Probar contra el AppHub real.** Dos supuestos sin confirmar: que agregue `X-AppHub-Identidad` también a la negociación y
+  al websocket de `/_blazor`, y que conserve el `Host` original (Blazor arma las redirecciones con él).
+- **La sesión sobrevive a la revocación:** el circuito lee la identidad una vez. Si en AppHub le quitan el acceso a alguien
+  con la pestaña abierta, sigue adentro hasta recargar. Un tope de duración es decisión suya.
+- Alta de `datapipeline` en `Apps[]` de AppHub con la misma clave (no se tocó el repo de AppHub).
+- `main` quedó 2 commits adelante de `origin/main` (perfiles de publicación de la 00155) y nada de esto está pusheado.
+
 ## TAREA 00155 — 01/11/2026
 
 **Pedido (textual):** «ahi estuve probando y me dio errores momento de actualizar un pipeline para

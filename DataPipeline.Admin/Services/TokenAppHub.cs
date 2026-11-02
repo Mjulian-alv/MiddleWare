@@ -35,6 +35,9 @@ public static class TokenAppHub
 {
     public const string Encabezado = "X-AppHub-Identidad";
 
+    /// <summary>Vida del token segun el contrato (exp - iat).</summary>
+    public const int VidaMaximaSegundos = 60;
+
     private static byte[]? Base64Url(string s)
     {
         try
@@ -86,9 +89,13 @@ public static class TokenAppHub
             var t = ahora.ToUnixTimeSeconds();
             if (exp == null || exp < t - o.ToleranciaSegundos) { motivo = "vencido"; return null; }
             if (iat == null || iat > t + o.ToleranciaSegundos) { motivo = "emitido en el futuro"; return null; }
+            // Fecha: 02/11/2026 - TAREA: 00157 - Linea: 1 - Revision 1: se acota la vida del token. El contrato dice 60 s; sin este tope un token con
+            // exp lejano (bug de AppHub, o uno filtrado de un log del proxy) abriria sesion de administrador todo ese tiempo.
+            if (exp <= iat || exp - iat > VidaMaximaSegundos + o.ToleranciaSegundos) { motivo = "vida invalida"; return null; }
 
             var correo = (S("email") ?? "").Trim();
-            if (correo.Length == 0 || correo.Length > 200 || !MailAddress.TryCreate(correo, out var m) || m.Address != correo || !correo.Contains('@'))
+            // Fecha: 02/11/2026 - TAREA: 00157 - Linea: 1 - Revision 1: el correo va al log; sin caracteres de control.
+            if (correo.Length == 0 || correo.Length > 200 || correo.Any(char.IsControl) || !MailAddress.TryCreate(correo, out var m) || m.Address != correo || !correo.Contains('@'))
             { motivo = "correo"; return null; }
 
             var nombre = (S("name") ?? "").Trim();

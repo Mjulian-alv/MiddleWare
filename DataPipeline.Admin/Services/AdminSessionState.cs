@@ -13,7 +13,7 @@ public enum OrigenSesion { Local, AppHub }
 /// </summary>
 public class AdminSessionState(AuthenticationStateProvider auth, ILogger<AdminSessionState> log)
 {
-    private bool _identidadLeida;
+    private Task? _inicializacion;
 
     public bool IsAuthenticated { get; private set; }
     public string? Username { get; private set; }
@@ -38,11 +38,12 @@ public class AdminSessionState(AuthenticationStateProvider auth, ILogger<AdminSe
     // Fecha: 02/11/2026 - TAREA: 00157 - Linea: 2,3 - Toma la identidad que dejo el middleware de AppHub en el usuario del circuito.
     // Quien AppHub deja abrir entra como administrador (el Admin es todo-o-nada; no hay usuarios ni permisos propios).
     // Se lee una sola vez por circuito, y nunca pisa una sesion ya abierta con el login propio.
-    public async Task InicializarAsync()
-    {
-        if (_identidadLeida) return;
-        _identidadLeida = true;
+    // Fecha: 02/11/2026 - TAREA: 00157 - Linea: 3 - Revision 1: se guarda la Task y no un booleano. Con el booleano un segundo llamador volvia de
+    // inmediato con IsAuthenticated en false mientras el primero seguia esperando, y si la lectura fallaba la identidad no se volvia a leer.
+    public Task InicializarAsync() => _inicializacion ??= LeerIdentidadAsync();
 
+    private async Task LeerIdentidadAsync()
+    {
         var user = (await auth.GetAuthenticationStateAsync()).User;
         AppHubRechazada = user.HasClaim(c => c.Type == IdentidadAppHub.ClaimRechazada);
         if (IsAuthenticated || !user.HasClaim(c => c.Type == IdentidadAppHub.ClaimOrigen)) return;

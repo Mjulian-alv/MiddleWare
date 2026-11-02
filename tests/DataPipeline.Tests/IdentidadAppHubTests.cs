@@ -77,6 +77,10 @@ public class IdentidadAppHubTests
     [InlineData("correo-malo")]
     [InlineData("futuro")]
     [InlineData("sin-exp")]
+    // Fecha: 02/11/2026 - TAREA: 00157 - Linea: 1 - Revision 1: vida del token acotada y correo sin caracteres de control.
+    [InlineData("exp-lejano")]
+    [InlineData("exp-antes-de-iat")]
+    [InlineData("correo-con-control")]
     public void Lo_que_no_cumple_el_contrato_se_rechaza(string caso)
     {
         var t = caso switch
@@ -91,6 +95,9 @@ public class IdentidadAppHubTests
             "correo-malo" => Token(ajustar: c => c["email"] = "no es un correo"),
             "futuro" => Token(ajustar: c => c["iat"] = Ahora.ToUnixTimeSeconds() + 31),
             "sin-exp" => Token(ajustar: c => c.Remove("exp")),
+            "exp-lejano" => Token(ajustar: c => c["exp"] = Ahora.ToUnixTimeSeconds() + 365 * 24 * 3600),
+            "exp-antes-de-iat" => Token(ajustar: c => c["exp"] = Ahora.ToUnixTimeSeconds() - 5),
+            "correo-con-control" => Token(ajustar: c => c["email"] = "ana\n@alvearsupermercados.com.ar"),
             _ => throw new ArgumentOutOfRangeException(nameof(caso)),
         };
         Assert.Null(TokenAppHub.Validar(t, Opciones, Ahora, out var motivo));
@@ -98,9 +105,21 @@ public class IdentidadAppHubTests
     }
 
     [Fact]
+    public void Una_vida_un_poco_mayor_que_la_del_contrato_entra_en_la_tolerancia_y_una_excesiva_no()
+    {
+        var limite = TokenAppHub.VidaMaximaSegundos + Opciones.ToleranciaSegundos;
+        var ok = Token(ajustar: c => c["exp"] = Ahora.ToUnixTimeSeconds() + limite);
+        var mal = Token(ajustar: c => c["exp"] = Ahora.ToUnixTimeSeconds() + limite + 1);
+        Assert.NotNull(TokenAppHub.Validar(ok, Opciones, Ahora, out _));
+        Assert.Null(TokenAppHub.Validar(mal, Opciones, Ahora, out var motivo));
+        Assert.Equal("vida invalida", motivo);
+    }
+
+    [Fact]
     public void Dentro_de_la_tolerancia_todavia_vale()
     {
-        var t = Token(ajustar: c => c["exp"] = Ahora.ToUnixTimeSeconds() - 30);
+        // Fecha: 02/11/2026 - TAREA: 00157 - Linea: 1 - Revision 1: con la vida acotada, el token tiene que seguir siendo de 60 s.
+        var t = Token(ajustar: c => { c["iat"] = Ahora.ToUnixTimeSeconds() - 90; c["exp"] = Ahora.ToUnixTimeSeconds() - 30; });
         Assert.NotNull(TokenAppHub.Validar(t, Opciones, Ahora, out _));
     }
 
@@ -189,6 +208,16 @@ public class IdentidadAppHubTests
         Assert.Equal("ana@alvearsupermercados.com.ar", s.Username);
         Assert.Equal(OrigenSesion.AppHub, s.Origen);
         Assert.False(s.AppHubRechazada);
+    }
+
+    [Fact]
+    public async Task Dos_llamadores_de_InicializarAsync_esperan_la_misma_lectura()
+    {
+        // Fecha: 02/11/2026 - TAREA: 00157 - Linea: 3 - Revision 1: el segundo llamador no vuelve antes de que termine la lectura.
+        var s = Sesion(await Pasar(Opciones, TokenAhora()));
+        await Task.WhenAll(s.InicializarAsync(), s.InicializarAsync());
+        Assert.True(s.IsAuthenticated);
+        Assert.Same(s.InicializarAsync(), s.InicializarAsync());
     }
 
     [Fact]
