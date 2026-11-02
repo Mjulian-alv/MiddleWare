@@ -1,3 +1,4 @@
+using System.Text.Json;
 using DataPipeline.Core.Pipelines;
 using DataPipeline.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -41,6 +42,39 @@ public class RepositoriosTests
         Assert.NotNull(leido);
         Assert.Single(leido!.Pasos);
         Assert.Equal("leer", leido.Pasos[0].Nombre);
+    }
+
+    // Fecha: 02/11/2026 - TAREA: 00158 - Linea: 2 - El hydrator inyecta la credencial desencriptada en
+    // la configuracion del paso, EN MEMORIA, para correr. Si el pipeline venia de una lectura con
+    // tracking, el SaveChanges de ActualizarWatermarkAsync (mismo DbContext) la persistia en texto
+    // plano en metadata.db, y desde entonces el pipeline ignoraba los cambios hechos al origen.
+    [Fact]
+    public async Task Lo_que_se_inyecta_en_memoria_para_correr_no_se_guarda_al_actualizar_el_watermark()
+    {
+        var cs = $"Data Source={Path.Combine(Path.GetTempPath(), $"meta_{Guid.NewGuid():N}.db")};Pooling=False";
+        MetadataDbContext Abrir()
+        {
+            var c = new MetadataDbContext(new DbContextOptionsBuilder<MetadataDbContext>().UseSqlite(cs).Options);
+            c.Database.EnsureCreated();
+            return c;
+        }
+
+        var def = Def("stock", null);
+        using (var ctx0 = Abrir())
+            await new EfPipelineStore(ctx0).UpsertAsync(def, CancellationToken.None);
+
+        using (var ctx1 = Abrir())
+        {
+            var store = new EfPipelineStore(ctx1);
+            var cargado = await store.GetByIdAsync(def.Id, CancellationToken.None);
+            cargado!.Pasos[0].Configuracion["password"] = JsonSerializer.SerializeToElement("secreta");
+            await store.ActualizarWatermarkAsync(def.Id, "2026-11-02", CancellationToken.None);
+        }
+
+        using var ctx2 = Abrir();
+        var releido = await new EfPipelineStore(ctx2).GetByIdAsync(def.Id, CancellationToken.None);
+        Assert.Equal("2026-11-02", releido!.UltimoWatermark);
+        Assert.DoesNotContain("password", releido.Pasos[0].Configuracion.Keys);
     }
 
     [Fact]

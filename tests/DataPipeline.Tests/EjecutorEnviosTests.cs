@@ -1,4 +1,5 @@
 // Fecha: 17/09/2026 - TAREA: 00038 - Linea: 2 - Encadenamiento pull/push: el barrido de envios.
+using System.Text.Json;
 using DataPipeline.Connectors.Security;
 using DataPipeline.Connectors.Stores;
 using DataPipeline.Core.DataSources;
@@ -43,7 +44,9 @@ public class EjecutorEnviosTests
         public void Dispose() => Meta.Dispose();
     }
 
-    private static async Task<Armado> ArmarAsync(bool conDatos = true, int filasPorLote = 5_000)
+    // Fecha: 02/11/2026 - TAREA: 00158 - Linea: 1 - lote y configurar: probar tipos de columna distintos de id/monto.
+    private static async Task<Armado> ArmarAsync(bool conDatos = true, int filasPorLote = 5_000,
+        RecordBatch? lote = null, Action<PipelineDefinition>? configurar = null)
     {
         var meta = NuevoMeta();
         var envios = new EfEnvioStore(meta);
@@ -52,15 +55,17 @@ public class EjecutorEnviosTests
 
         var dataCs = $"Data Source={Path.Combine(Path.GetTempPath(), $"ejenvd_{Guid.NewGuid():N}.db")};Pooling=False";
         var data = new SqliteDataStore(dataCs);
-        await data.EnsureTableAsync("destino", new[] { "id", "monto" }, ModoEscritura.Agregar, CancellationToken.None);
+        var datos = lote ?? Lote((1, 100), (2, 200));
+        await data.EnsureTableAsync("destino", datos.Columns, ModoEscritura.Agregar, CancellationToken.None);
         if (conDatos)
-            await data.WriteBatchAsync("destino", Lote((1, 100), (2, 200)), Clave, ModoEscritura.Agregar, CancellationToken.None);
+            await data.WriteBatchAsync("destino", datos, Clave, ModoEscritura.Agregar, CancellationToken.None);
 
         var pipe = new PipelineDefinition
         {
             Id = Guid.NewGuid(), Nombre = "p", TablaDestino = "destino",
             ModoEscritura = ModoEscritura.Agregar, FilasPorLote = 100, ColumnasClave = { "id" }
         };
+        configurar?.Invoke(pipe);
         await pipelines.UpsertAsync(pipe, CancellationToken.None);
 
         var origen = new DataSource { Id = Guid.NewGuid(), Nombre = "SQL-CONTA", Tipo = TipoDataSource.SqlServer };
@@ -82,6 +87,109 @@ public class EjecutorEnviosTests
     }
 
     private static Task<Envio?> Recargar(Armado a) => a.Envios.GetByIdAsync(a.Envio.Id, CancellationToken.None);
+
+    // Fecha: 02/11/2026 - TAREA: 00158 - Linea: 1 - Las columnas de fecha llegaban al destino como
+    // NVARCHAR(MAX): SQLite devuelve el DateTime como texto y el tipo se inferia de ese texto.
+    private static RecordBatch LoteConFecha(DateTime? fecha) => new()
+    {
+        Columns = new[] { "id", "ult_inv", "nota" },
+        Rows = new List<Record>
+        {
+            new() { Values = new Dictionary<string, object?> { ["id"] = 1, ["ult_inv"] = fecha, ["nota"] = "2026-10-31 16:53:40" } }
+        }
+    };
+
+    private static StepDefinition PasoCast(string cast, string? rename = null) => new()
+    {
+        Nombre = "t", Tipo = TipoPaso.Transformacion, Conector = "ColumnMapTransform",
+        Configuracion =
+        {
+            ["cast"] = JsonDocument.Parse(cast).RootElement.Clone(),
+            ["rename"] = JsonDocument.Parse(rename ?? "{}").RootElement.Clone()
+        }
+    };
+
+    [Fact]
+    public async Task Una_columna_con_cast_a_date_se_crea_como_fecha_y_viaja_como_DateTime()
+    {
+        using var a = await ArmarAsync(lote: LoteConFecha(new DateTime(2026, 10, 31, 16, 53, 40)),
+            configurar: p => p.Pasos.Add(PasoCast("""{"ult_inv":"date"}""")));
+
+        await a.Ejecutor.ProcesarPendientesAsync(Ahora, CancellationToken.None);
+
+        Assert.Equal(typeof(DateTime), a.Destino.ColumnasCreadas.Single(c => c.Nombre == "ult_inv").TipoClr);
+        Assert.Equal(new DateTime(2026, 10, 31, 16, 53, 40), a.Destino.Escritas.Single().Values["ult_inv"]);
+    }
+
+    [Fact]
+    public async Task Una_columna_de_texto_que_parece_fecha_sigue_siendo_texto()
+    {
+        // "nota" trae un texto con forma de fecha pero nadie la declaro fecha: no se adivina.
+        using var a = await ArmarAsync(lote: LoteConFecha(new DateTime(2026, 10, 31)),
+            configurar: p => p.Pasos.Add(PasoCast("""{"ult_inv":"date"}""")));
+
+        await a.Ejecutor.ProcesarPendientesAsync(Ahora, CancellationToken.None);
+
+        Assert.Equal(typeof(string), a.Destino.ColumnasCreadas.Single(c => c.Nombre == "nota").TipoClr);
+        Assert.IsType<string>(a.Destino.Escritas.Single().Values["nota"]);
+    }
+
+    [Fact]
+    public async Task Una_fecha_declarada_en_el_esquema_del_origen_tambien_se_crea_como_fecha()
+    {
+        using var a = await ArmarAsync(lote: LoteConFecha(new DateTime(2026, 10, 31)),
+            configurar: p => p.EsquemaOrigen.Add(new ColumnaOrigen { Nombre = "ult_inv", Tipo = "datetime" }));
+
+        await a.Ejecutor.ProcesarPendientesAsync(Ahora, CancellationToken.None);
+
+        Assert.Equal(typeof(DateTime), a.Destino.ColumnasCreadas.Single(c => c.Nombre == "ult_inv").TipoClr);
+    }
+
+    [Fact]
+    public async Task Una_fecha_nula_en_el_primer_lote_igual_se_crea_como_fecha()
+    {
+        using var a = await ArmarAsync(lote: LoteConFecha(null),
+            configurar: p => p.Pasos.Add(PasoCast("""{"ult_inv":"date"}""")));
+
+        await a.Ejecutor.ProcesarPendientesAsync(Ahora, CancellationToken.None);
+
+        Assert.Equal(typeof(DateTime), a.Destino.ColumnasCreadas.Single(c => c.Nombre == "ult_inv").TipoClr);
+        Assert.Null(a.Destino.Escritas.Single().Values["ult_inv"]);
+    }
+
+    [Fact]
+    public void ColumnasFecha_respeta_el_rename_y_deja_que_un_cast_posterior_la_desmarque()
+    {
+        var p = new PipelineDefinition
+        {
+            EsquemaOrigen = { new ColumnaOrigen { Nombre = "FECHA", Tipo = "fecha" }, new ColumnaOrigen { Nombre = "ALTA", Tipo = "fecha" } },
+            Pasos =
+            {
+                PasoCast("{}", """{"FECHA":"f_mov"}"""),
+                PasoCast("""{"ALTA":"string"}""")
+            }
+        };
+
+        var fechas = EjecutorEnvios.ColumnasFecha(p);
+
+        Assert.Equal(new[] { "f_mov" }, fechas.ToArray());
+    }
+
+    [Fact]
+    public async Task Un_valor_que_no_es_fecha_en_una_columna_de_fecha_falla_con_el_nombre_de_la_columna()
+    {
+        using var a = await ArmarAsync(lote: new RecordBatch
+        {
+            Columns = new[] { "id", "ult_inv" },
+            Rows = new List<Record> { new() { Values = new Dictionary<string, object?> { ["id"] = 1, ["ult_inv"] = "no-es-fecha" } } }
+        }, configurar: p => p.Pasos.Add(PasoCast("""{"ult_inv":"date"}""")));
+
+        await a.Ejecutor.ProcesarPendientesAsync(Ahora, CancellationToken.None);
+
+        var e = (await Recargar(a))!;
+        Assert.Contains("ult_inv", e.UltimoError);
+        Assert.Empty(a.Destino.Escritas);
+    }
 
     [Fact]
     public async Task Empuja_las_filas_y_apaga_la_bandera()

@@ -9,11 +9,14 @@ public sealed class EfPipelineStore : IPipelineStore
     private readonly MetadataDbContext _db;
     public EfPipelineStore(MetadataDbContext db) => _db = db;
 
+    // Fecha: 02/11/2026 - TAREA: 00158 - Linea: 2 - Sin tracking: el hydrator modifica la definicion en
+    // memoria (inyecta la credencial desencriptada) y con tracking el siguiente SaveChanges del mismo
+    // DbContext la guardaba en texto plano. Quien quiera persistir cambios usa UpsertAsync.
     public Task<PipelineDefinition?> GetByIdAsync(Guid id, CancellationToken ct) =>
-        _db.Pipelines.FirstOrDefaultAsync(p => p.Id == id, ct);
+        _db.Pipelines.AsNoTracking().FirstOrDefaultAsync(p => p.Id == id, ct);
 
     public Task<PipelineDefinition?> GetByNombreAsync(string nombre, CancellationToken ct) =>
-        _db.Pipelines.FirstOrDefaultAsync(p => p.Nombre == nombre, ct);
+        _db.Pipelines.AsNoTracking().FirstOrDefaultAsync(p => p.Nombre == nombre, ct);
 
     public async Task<IReadOnlyList<PipelineDefinition>> GetAllAsync(CancellationToken ct) =>
         await _db.Pipelines.AsNoTracking().ToListAsync(ct);
