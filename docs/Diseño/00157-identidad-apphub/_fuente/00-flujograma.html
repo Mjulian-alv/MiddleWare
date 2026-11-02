@@ -1,0 +1,26 @@
+<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Flujograma 00157</title><style>body{margin:0;padding:24px;background:#fff;font-family:Segoe UI,Arial,sans-serif;display:inline-block}</style></head><body><pre class="mermaid">
+flowchart TD
+    A([Pedido HTTP al Admin]) --> B{AppHub:ClaveCompartida<br/>configurada?}
+    B -- No --> L[Modo autónomo:<br/>login dpAdmin, como hoy]
+    B -- Sí --> C{Trae X-AppHub-Identidad?}
+    C -- No --> L
+    C -- "Sí, repetido" --> R
+    C -- "Sí, uno solo" --> V{Valida: 3 partes, alg HS256,<br/>firma, iss, aud, exp, iat, correo}
+    V -- "Falla (formato, algoritmo, firma,<br/>emisor, destinatario, vencido,<br/>futuro, correo)" --> R[Advertencia en el log SIN token<br/>Items: AppHub.Aviso = rechazada]
+    R --> LA[Login propio con aviso<br/>«AppHub no pudo confirmar tu identidad»]
+    V -- Todo bien --> I[Items: identidad correo + nombre]
+    I --> K[Se crea el circuito Blazor]
+    K --> S[AdminSessionState.AutenticarDesdeAppHub<br/>Origen = AppHub, administrador]
+    S --> U[Log: correo que entró]
+    U --> P[Pantallas del Admin<br/>cabecera con el correo, sin «Salir»]
+    P --> Q{Qué hace la persona}
+    Q -- "Recarga la página" --> A
+    Q -- "Sale desde AppHub" --> X([Fin: el próximo pedido ya no trae token])
+    Q -- "Token vence con el circuito abierto" --> M[Nada: el token vale solo al crear el circuito;<br/>la sesión sigue hasta cerrar o recargar]
+    M --> P
+    L --> LL{Contraseña correcta?}
+    LA --> LL
+    LL -- Sí --> PL[Sesión local Origen = Local<br/>con «Salir»]
+    LL -- No --> LA2[Contraseña incorrecta]
+    LA2 --> LL
+</pre><script type="module">import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.esm.min.mjs";mermaid.initialize({startOnLoad:true,theme:"neutral",flowchart:{htmlLabels:true,useMaxWidth:false,nodeSpacing:40,rankSpacing:45},themeVariables:{fontSize:"15px"}});await mermaid.run();document.title="listo";</script></body></html>
