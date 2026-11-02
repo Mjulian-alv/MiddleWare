@@ -20,7 +20,11 @@
                         </span>
                         @Session.Username
                     </span>
-                    <SfButton CssClass="e-flat e-small" OnClick="CerrarSesion">Salir</SfButton>
+                    @* Fecha: 02/11/2026 - TAREA: 00157 - Linea: 3 - Con sesion de AppHub no hay «Salir»: se sale desde AppHub. *@
+                    @if (Session.Origen == OrigenSesion.Local)
+                    {
+                        <SfButton CssClass="e-flat e-small" OnClick="CerrarSesion">Salir</SfButton>
+                    }
                 </span>
             </div>
 
@@ -38,13 +42,19 @@
 </div>
 
 @code {
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
         Session.OnChange += OnSessionChange;
 
+        // Fecha: 02/11/2026 - TAREA: 00157 - Linea: 2,3 - Antes del gate: si AppHub mando una identidad valida, la sesion se abre aca.
+        await Session.InicializarAsync();
+
         // Gate central: cualquier pagina que use MainLayout exige sesion.
         if (!Session.IsAuthenticated)
-            Nav.NavigateTo("/login");
+        {
+            // Fecha: 02/11/2026 - TAREA: 00157 - Linea: 4 - Ruta relativa a la base: con PathBase (/datapipeline) una ruta con «/» inicial saldria del prefijo de AppHub.
+            Nav.NavigateTo("login");
+        }
     }
 
     private void OnSessionChange() => InvokeAsync(StateHasChanged);
@@ -52,7 +62,8 @@
     private void CerrarSesion()
     {
         Session.CerrarSesion();
-        Nav.NavigateTo("/login");
+        // Fecha: 02/11/2026 - TAREA: 00157 - Linea: 4 - Ruta relativa a la base: con PathBase (/datapipeline) una ruta con «/» inicial saldria del prefijo de AppHub.
+        Nav.NavigateTo("login");
     }
 
     public void Dispose() => Session.OnChange -= OnSessionChange;

@@ -39,6 +39,9 @@ builder.Services.AddSyncfusionBlazor();
 builder.Services.AddSingleton<AdminAuthService>();
 builder.Services.AddScoped<AdminSessionState>();
 
+// Fecha: 02/11/2026 - TAREA: 00157 - Linea: 1 - Identidad de AppHub: con AppHub:ClaveCompartida vacia queda apagada y el Admin funciona solo, como antes.
+builder.Services.AddSingleton(IdentidadAppHubOptions.Desde(builder.Configuration));
+
 // ── HttpClient hacia DataPipeline.Api ────────────────────────────────────────
 // El Admin habla con la API por HTTP (nunca toca la BD). Las rutas de gestion exigen rol admin,
 // asi que cada cliente lleva Authorization: Basic admin:**** desde config.
@@ -77,14 +80,30 @@ ApiClient<EnviosAdminService>();
 
 var app = builder.Build();
 
+// Fecha: 02/11/2026 - TAREA: 00157 - Linea: 4 - PathBase opcional para servir el Admin bajo una subruta (/datapipeline) detras de AppHub; vacio = raiz como hasta ahora.
+// UseRouting va explicito despues de UsePathBase: con WebApplication el implicito iria antes y emparejaria la ruta con el prefijo todavia puesto.
+var pathBase = builder.Configuration["PathBase"]?.Trim('/');
+if (!string.IsNullOrEmpty(pathBase))
+{
+    app.UsePathBase("/" + pathBase);
+    app.UseRouting();
+}
+
+// Fecha: 02/11/2026 - TAREA: 00157 - Linea: 4 - ForzarHttps=false apaga HSTS y la redireccion a https: detras de AppHub el Admin recibe http por localhost y, sin esto, redirigiria en bucle. Por defecto queda true.
+var forzarHttps = builder.Configuration.GetValue("ForzarHttps", true);
+
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Error", createScopeForErrors: true);
-    app.UseHsts();
+    if (forzarHttps) app.UseHsts();
 }
 
 app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
-app.UseHttpsRedirection();
+if (forzarHttps) app.UseHttpsRedirection();
+
+// Fecha: 02/11/2026 - TAREA: 00157 - Linea: 2,3 - Antes de Blazor: deja en HttpContext.User la identidad de AppHub (o la marca de rechazada).
+app.UseMiddleware<IdentidadAppHub>();
+
 app.UseAntiforgery();
 
 app.MapStaticAssets();

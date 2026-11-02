@@ -1,6 +1,6 @@
 # TAREA 00157 — DataPipeline.Admin dentro de AppHub (identidad)
 
-Fecha: 02/11/2026 · Estado: guía aprobada · flujograma y maquetas pendientes de aprobación · Basada en el contrato
+Fecha: 02/11/2026 · Estado: construido y verificado en navegador (ver §9) · Basada en el contrato
 `D:\Sistemas\Concentrador\Docs\Contrato-Apps.md` (v0.2) y en el piloto del Conciliador (TAREA 00140).
 
 ## 1. Qué es
@@ -49,10 +49,13 @@ websocket y ya no lo traen.
 2. **Sin tabla de usuarios, sin `oid` persistido.** El correo y el nombre del token alcanzan
    para mostrar quién está; no se guarda nada. `AdministradoresIniciales` **no se usa** (no hay
    nada que ascender) y no se agrega a la config de esta app.
-3. **Sin cookie.** El middleware valida el token del pedido HTTP y deja la identidad en
-   `HttpContext.Items`; al crearse el circuito, `AdminSessionState` la toma y queda
-   autenticado (`Origen = AppHub`). Al recargar, el pedido vuelve a traer el token y entra
-   solo.
+3. **Sin cookie.** El middleware valida el token del pedido HTTP y deja la identidad como
+   claims en `HttpContext.User` (un principal **sin tipo de autenticación**: para ASP.NET no
+   está autenticado, no abre nada por sí solo). Blazor toma el usuario del pedido que crea el
+   circuito (la negociación de `/_blazor` y el websocket, que también pasan por el middleware)
+   y `AdminSessionState.InicializarAsync` lo lee y queda autenticado (`Origen = AppHub`). Al
+   recargar, el pedido vuelve a traer el token y entra solo. *(Corrige el borrador, que decía
+   `HttpContext.Items`: Items no llega al circuito.)*
 4. **Un token inválido nunca abre sesión.** Se registra una advertencia sin el contenido del
    token, y se muestra el login propio con el aviso.
 5. **El login propio no sirve para la sesión de AppHub** y la sesión de AppHub no muestra
@@ -81,14 +84,16 @@ clave real en la config del servidor (no en el repo).
 | Archivo | Cambio |
 |---|---|
 | `DataPipeline.Admin/Services/TokenAppHub.cs` | Nuevo. Opciones + validación del token (portado del Conciliador, mismos motivos de rechazo). |
-| `DataPipeline.Admin/Services/IdentidadAppHub.cs` | Nuevo. Middleware: valida y deja la identidad en `HttpContext.Items`. |
-| `DataPipeline.Admin/Services/AdminSessionState.cs` | `Origen` (Local/AppHub), `Correo`; `AutenticarDesdeAppHub(...)`. |
-| `DataPipeline.Admin/Components/Layout/MainLayout.razor` | Toma la identidad al crear el circuito; oculta «Salir» si `Origen = AppHub`. |
-| `DataPipeline.Admin/Components/Pages/Login.razor` | Aviso «AppHub no pudo confirmar tu identidad». |
+| `DataPipeline.Admin/Services/IdentidadAppHub.cs` | Nuevo. Middleware: valida y deja la identidad (o la marca de rechazada) como claims en `HttpContext.User`. |
+| `DataPipeline.Admin/Services/AdminSessionState.cs` | `Origen` (Local/AppHub), `AppHubRechazada`; `InicializarAsync()` lee la identidad del usuario del circuito. |
+| `DataPipeline.Admin/Components/Layout/MainLayout.razor` | Toma la identidad al crear el circuito; oculta «Salir» si `Origen = AppHub`; `login` relativo. |
+| `DataPipeline.Admin/Components/Pages/Login.razor` | Aviso «AppHub no pudo confirmar tu identidad»; toma la identidad también acá; rutas relativas. |
+| `DataPipeline.Admin/Components/App.razor` | `<base href>` con el `PathBase` de la config (no del host del pedido). |
+| `Components/Pages/{Home,Envios/*,Pipelines/*}.razor` | Todas las navegaciones y enlaces pasan de `/ruta` a `ruta` (relativos a la base): con `PathBase` una ruta con «/» inicial saca a la persona del prefijo. Sin `PathBase` se comportan igual. |
 | `DataPipeline.Admin/Program.cs` | Opciones, middleware, `PathBase`, `ForzarHttps`. |
 | `DataPipeline.Admin/appsettings.json` | Sección `AppHub` (clave vacía). |
-| `tests/…` | Pruebas del token (los 10 casos del checklist del contrato). |
-| `docs/Despliegue-AppHub.md` | Alta en AppHub (`Apps[]`), clave compartida, `PathBase`. |
+| `tests/DataPipeline.Tests/IdentidadAppHubTests.cs` | 36 pruebas: validador, configuración, middleware y sesión (checklist del contrato). |
+| `docs/Despliegue-AppHub.md` | Alta en AppHub (`Apps[]`), clave compartida, `PathBase`, `Host`. |
 
 ## 8. Orden de implementación
 
@@ -98,11 +103,18 @@ clave real en la config del servidor (no en el repo).
 4. `Program.cs`: `PathBase`, https, config (ítem 4).
 5. Guía de despliegue y verificación en navegador con un AppHub simulado (ítem 4).
 
-## 9. Qué no se puede verificar acá
+## 9. Verificación
 
-Contra el AppHub real publicado y su proxy: cómo reenvía el websocket de Blazor
-(`/_blazor`) y los estáticos bajo `/datapipeline/`. Se prueba con el encabezado firmado a
-mano y, si se puede, con AppHub local; queda anotado en el historial.
+**Probado** (suite completa: 292 pruebas, 0 fallas) y **en navegador** con el Admin real, `PathBase=datapipeline`
+y un proxy de prueba que agrega el encabezado firmado a cada pedido, websocket incluido, como haría AppHub:
+token correcto → entra solo, con el correo y sin «Salir», interactivo, navegando bajo `/datapipeline/`; firma mala
+→ login propio con el aviso; sin encabezado → login normal sin aviso; `/login` con identidad válida → inicio.
+
+**No probado: el AppHub real publicado.** Dos supuestos que hay que confirmar con él:
+1. **Que agregue `X-AppHub-Identidad` también a la negociación y al websocket de `/_blazor`**, no solo a los pedidos de
+   página. Si no, el circuito no recibe la identidad y la persona cae en el login propio.
+2. **Que conserve el `Host` original (o mande `X-Forwarded-Host`)**: Blazor arma las redirecciones con el host del
+   pedido, y con el host interno la persona saldría del portal.
 
 ## Flujograma
 
@@ -116,11 +128,11 @@ flowchart TD
     C -- No --> L
     C -- "Sí, repetido" --> R
     C -- "Sí, uno solo" --> V{Valida: 3 partes, alg HS256,<br/>firma, iss, aud, exp, iat, correo}
-    V -- "Falla (formato, algoritmo, firma,<br/>emisor, destinatario, vencido,<br/>futuro, correo)" --> R[Advertencia en el log SIN token<br/>Items: AppHub.Aviso = rechazada]
+    V -- "Falla (formato, algoritmo, firma,<br/>emisor, destinatario, vencido,<br/>futuro, correo)" --> R[Advertencia en el log SIN token<br/>User = claim «rechazada»]
     R --> LA[Login propio con aviso<br/>«AppHub no pudo confirmar tu identidad»]
-    V -- Todo bien --> I[Items: identidad correo + nombre]
-    I --> K[Se crea el circuito Blazor]
-    K --> S[AdminSessionState.AutenticarDesdeAppHub<br/>Origen = AppHub, administrador]
+    V -- Todo bien --> I[HttpContext.User = claims<br/>correo + nombre]
+    I --> K["Se crea el circuito Blazor<br/>(toma el User del pedido)"]
+    K --> S[AdminSessionState.InicializarAsync<br/>Origen = AppHub, administrador]
     S --> U[Log: correo que entró]
     U --> P[Pantallas del Admin<br/>cabecera con el correo, sin «Salir»]
     P --> Q{Qué hace la persona}

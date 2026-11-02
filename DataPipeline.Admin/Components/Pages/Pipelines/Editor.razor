@@ -1,4 +1,5 @@
-﻿@page "/pipelines/nuevo"
+﻿@* Fecha: 02/11/2026 - TAREA: 00157 - Linea: 4 - Navegaciones y enlaces relativos a la base (sin «/» inicial): con PathBase (/datapipeline) una ruta absoluta saca a la persona del prefijo de AppHub. Sin PathBase se comportan igual que antes. *@
+@page "/pipelines/nuevo"
 @page "/pipelines/editar/{Id:guid}"
 @inject PipelinesAdminService Pipelines
 @inject DataSourcesAdminService Origenes
@@ -10,7 +11,7 @@
     <div>
         <h1 class="page-title">@(Id is null ? "Nuevo pipeline" : "Editar pipeline")</h1>
     </div>
-    <SfButton CssClass="e-flat" OnClick="@(() => Nav.NavigateTo("/pipelines"))">Volver a la lista</SfButton>
+    <SfButton CssClass="e-flat" OnClick="@(() => Nav.NavigateTo("pipelines"))">Volver a la lista</SfButton>
 </div>
 
 @if (_error is not null)
@@ -433,7 +434,7 @@ else
                 @(_guardando ? "Guardando..." : "Guardar")
             </SfButton>
         }
-        <SfButton CssClass="e-flat" OnClick="@(() => Nav.NavigateTo("/pipelines"))">Cancelar</SfButton>
+        <SfButton CssClass="e-flat" OnClick="@(() => Nav.NavigateTo("pipelines"))">Cancelar</SfButton>
     </div>
 }
 
@@ -742,7 +743,7 @@ else
             // duplicado", que son dos causas posibles entre muchas y ninguna confirmada. Ahora se
             // muestra lo que dijo la API, con el traceId para buscarlo en el log del servidor.
             var res = await Pipelines.GuardarAsync(ConstruirDef());
-            if (res.Ok) Nav.NavigateTo("/pipelines");
+            if (res.Ok) Nav.NavigateTo("pipelines");
             else _error = $"No se pudo guardar. {res.Mostrar()}";
         }
         finally { _guardando = false; }
